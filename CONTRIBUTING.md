@@ -4,8 +4,8 @@ Thank you for your interest in contributing to Klaytn. As an open source project
 
 ## How to Contribute
 
-1. Read this [contributing document](./CONTRIBUTING.md)
-2. Sign [Contributor Licensing Agreements](#contributor-license-agreements)
+1. Read this [contributing document](./CONTRIBUTING.md).
+2. Sign [Contributor Licensing Agreement (CLA)](#contributor-license-agreement-cla).
 3. Submit an issue with proper [labeling](#usage-of-labels).
 4. Please wait until the label changes to `contribution welcome` - otherwise, it is not ready to be worked on.
 5. After the label changed to `contribution welcome`, you can start working on the implementation. To avoid any duplicate efforts, it is recommended to update the issue so that other developers see someone working on the issue.
@@ -37,7 +37,7 @@ After confirming your report meets the above criteria, [submit the issue](https:
 
 ### Feature Requests
 
-You can also use the [issue tracker](https://github.com/klaytn/klaytn/issues) to request a new feature or enhancement. Note that any code contribution without an issue link will not be accepted. Please submit an issue explaining your proposal first so that Klaytn community fully understand and discuss the idea. Please use [labels](#usage-of-labels) for your feature request as well.
+You can also use the [issue tracker](https://github.com/klaytn/klaytn/issues) to request a new feature or enhancement. Note that any code contribution without an issue link will not be accepted. Please submit an issue explaining your proposal first so that Klaytn community can fully understand and discuss the idea. Please use [labels](#usage-of-labels) for your feature request as well.
 
 #### Usage of Labels
 
@@ -75,7 +75,7 @@ refer to the following websites:
 - https://golang.org/doc/effective_go.html#commentary
 - https://blog.golang.org/godoc-documenting-go-code
 
-## Contributor License Agreements
+## Contributor License Agreement (CLA)
 
 Keep in mind when you submit your pull request, you'll need to sign the CLA via [CLA-Assistant](https://cla-assistant.io/klaytn/klaytn) for legal purposes. You will have to sign the CLA just one time, either as an individual or corporation.
 
