@@ -14,5 +14,5 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package ecies implements the Elliptic Curve Integrated Encryption Scheme
+// Package ecies implements the Elliptic Curve Integrated Encryption Scheme.
 package ecies
