@@ -57,15 +57,6 @@ const (
 	frameWriteTimeout = 20 * time.Second
 )
 
-// TODO-Klaytn-Node Below constants are duplicated with node packages. Use it temporarily until fix cycle import problem.
-const (
-	CONSENSUSNODE = iota
-	ENDPOINTNODE
-	PROXYNODE
-	BOOTNODE
-	UNKNOWNNODE // For error case
-)
-
 var errServerStopped = errors.New("server stopped")
 
 // Config holds Server options.
