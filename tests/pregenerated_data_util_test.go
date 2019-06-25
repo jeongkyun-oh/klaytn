@@ -30,7 +30,7 @@ import (
 	istanbulBackend "github.com/ground-x/klaytn/consensus/istanbul/backend"
 	"github.com/ground-x/klaytn/crypto"
 	"github.com/ground-x/klaytn/governance"
-	"github.com/ground-x/klaytn/node"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/storage/database"
 	"github.com/ground-x/klaytn/work"
@@ -374,7 +374,7 @@ func NewBCDataForPreGeneratedTest(testDataDir string, tc *preGeneratedTC) (*BCDa
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup istanbul consensus backend
-	engine := istanbulBackend.New(genesisAddr, istanbul.DefaultConfig, validatorPrivKeys[0], chainDB, gov, node.CONSENSUSNODE)
+	engine := istanbulBackend.New(genesisAddr, istanbul.DefaultConfig, validatorPrivKeys[0], chainDB, gov, networks.CONSENSUSNODE)
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Make a BlockChain

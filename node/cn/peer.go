@@ -35,8 +35,6 @@ import (
 	"math/big"
 	"sync"
 	"time"
-
-	"github.com/ground-x/klaytn/node"
 )
 
 var (
@@ -1021,7 +1019,7 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 	var consensusChannel chan p2p.Msg
 	isCN := false
 
-	if _, ok := pm.engine.(consensus.Handler); ok && pm.nodetype == node.CONSENSUSNODE {
+	if _, ok := pm.engine.(consensus.Handler); ok && pm.nodetype == networks.CONSENSUSNODE {
 		consensusChannel = make(chan p2p.Msg, channelSizePerPeer)
 		defer close(consensusChannel)
 		pm.engine.(consensus.Handler).RegisterConsensusMsgCode(p)
@@ -1099,9 +1097,9 @@ func newPeerSet() *peerSet {
 		validator: make(map[networks.ConnType]p2p.PeerTypeValidator),
 	}
 
-	peerSet.validator[node.CONSENSUSNODE] = ByPassValidator{}
-	peerSet.validator[node.PROXYNODE] = ByPassValidator{}
-	peerSet.validator[node.ENDPOINTNODE] = ByPassValidator{}
+	peerSet.validator[networks.CONSENSUSNODE] = ByPassValidator{}
+	peerSet.validator[networks.PROXYNODE] = ByPassValidator{}
+	peerSet.validator[networks.ENDPOINTNODE] = ByPassValidator{}
 
 	return peerSet
 }
@@ -1123,15 +1121,15 @@ func (ps *peerSet) Register(p Peer) error {
 	var peerTypeValidator p2p.PeerTypeValidator
 
 	switch p.ConnType() {
-	case node.CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		peersByNodeType = ps.cnpeers
-		peerTypeValidator = ps.validator[node.CONSENSUSNODE]
-	case node.PROXYNODE:
+		peerTypeValidator = ps.validator[networks.CONSENSUSNODE]
+	case networks.PROXYNODE:
 		peersByNodeType = ps.pnpeers
-		peerTypeValidator = ps.validator[node.PROXYNODE]
-	case node.ENDPOINTNODE:
+		peerTypeValidator = ps.validator[networks.PROXYNODE]
+	case networks.ENDPOINTNODE:
 		peersByNodeType = ps.enpeers
-		peerTypeValidator = ps.validator[node.ENDPOINTNODE]
+		peerTypeValidator = ps.validator[networks.ENDPOINTNODE]
 	default:
 		return fmt.Errorf("undefined peer type entered, p.ConnType(): %v", p.ConnType())
 	}
@@ -1165,11 +1163,11 @@ func (ps *peerSet) Unregister(id string) error {
 	if !ok {
 		return errNotRegistered
 	}
-	if p.ConnType() == node.CONSENSUSNODE {
+	if p.ConnType() == networks.CONSENSUSNODE {
 		delete(ps.cnpeers, p.GetAddr())
-	} else if p.ConnType() == node.PROXYNODE {
+	} else if p.ConnType() == networks.PROXYNODE {
 		delete(ps.pnpeers, p.GetAddr())
-	} else if p.ConnType() == node.ENDPOINTNODE {
+	} else if p.ConnType() == networks.ENDPOINTNODE {
 		delete(ps.enpeers, p.GetAddr())
 	}
 	delete(ps.peers, id)
@@ -1276,7 +1274,7 @@ func (ps *peerSet) PeersWithoutBlockExceptCN(hash common.Hash) []Peer {
 
 	list := make([]Peer, 0, len(ps.peers))
 	for _, p := range ps.peers {
-		if p.ConnType() != node.CONSENSUSNODE && !p.KnowsBlock(hash) {
+		if p.ConnType() != networks.CONSENSUSNODE && !p.KnowsBlock(hash) {
 			list = append(list, p)
 		}
 	}

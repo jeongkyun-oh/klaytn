@@ -28,7 +28,7 @@ import (
 	"github.com/ground-x/klaytn/event"
 	"github.com/ground-x/klaytn/log"
 	"github.com/ground-x/klaytn/metrics"
-	"github.com/ground-x/klaytn/node"
+	"github.com/ground-x/klaytn/networks"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 	"math"
 	"math/big"
@@ -374,7 +374,7 @@ func (c *core) newRoundChangeTimer() {
 			proposer = c.valSet.GetProposer().String()
 		}
 
-		if c.backend.NodeType() == node.CONSENSUSNODE {
+		if c.backend.NodeType() == networks.CONSENSUSNODE {
 			// Write log messages for validator activities analysis
 			preparesSize := c.current.Prepares.Size()
 			commitsSize := c.current.Commits.Size()

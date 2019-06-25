@@ -23,7 +23,6 @@ package work
 import (
 	"github.com/ground-x/klaytn/consensus"
 	"github.com/ground-x/klaytn/networks"
-	"github.com/ground-x/klaytn/node"
 	"sync"
 	"sync/atomic"
 )
@@ -107,7 +106,7 @@ out:
 
 func (self *CpuAgent) mine(work *Task, stop <-chan struct{}) {
 	// TODO-Klaytn drop or missing tx and remove mining on PN and EN
-	if self.nodetype != node.CONSENSUSNODE {
+	if self.nodetype != networks.CONSENSUSNODE {
 		ResultChGauge.Update(ResultChGauge.Value() + 1)
 		self.returnCh <- &Result{work, nil}
 		return

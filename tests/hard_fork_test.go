@@ -29,7 +29,7 @@ import (
 	"github.com/ground-x/klaytn/consensus/istanbul"
 	"github.com/ground-x/klaytn/crypto"
 	"github.com/ground-x/klaytn/governance"
-	"github.com/ground-x/klaytn/node"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/ser/rlp"
 	"github.com/ground-x/klaytn/storage/database"
@@ -94,7 +94,7 @@ func TestHardForkBlock(t *testing.T) {
 	gov := generateGovernaceDataForTest()
 	chainConfig, _, err := blockchain.SetupGenesisBlock(chainDb, &genesis, params.UnusedNetworkId, false)
 	governance.AddGovernanceCacheForTest(gov, 0, genesis.Config)
-	engine := istanbulBackend.New(genesisAddr, istanbul.DefaultConfig, genesisKey, chainDb, gov, node.CONSENSUSNODE)
+	engine := istanbulBackend.New(genesisAddr, istanbul.DefaultConfig, genesisKey, chainDb, gov, networks.CONSENSUSNODE)
 	chain, err := blockchain.NewBlockChain(chainDb, nil, chainConfig, engine, vm.Config{})
 
 	r1, err := hexutil.Decode(string(rawb1))

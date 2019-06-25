@@ -30,7 +30,6 @@ import (
 	"github.com/ground-x/klaytn/event"
 	"github.com/ground-x/klaytn/metrics"
 	"github.com/ground-x/klaytn/networks"
-	"github.com/ground-x/klaytn/node"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/storage/database"
 	"math/big"
@@ -352,7 +351,7 @@ func (self *worker) wait(TxResendUseLegacy bool) {
 			}
 
 			// TODO-Klaytn drop or missing tx
-			if self.nodetype != node.CONSENSUSNODE {
+			if self.nodetype != networks.CONSENSUSNODE {
 				if !TxResendUseLegacy {
 					continue
 				}
@@ -466,7 +465,7 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 		return err
 	}
 	work := NewTask(self.config, types.NewEIP155Signer(self.config.ChainID), stateDB, header)
-	if self.nodetype != node.CONSENSUSNODE {
+	if self.nodetype != networks.CONSENSUSNODE {
 		work.Block = parent
 	}
 
@@ -479,7 +478,7 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 func (self *worker) commitNewWork() {
 	var pending map[common.Address]types.Transactions
 	var err error
-	if self.nodetype == node.CONSENSUSNODE {
+	if self.nodetype == networks.CONSENSUSNODE {
 		// Check any fork transitions needed
 		pending, err = self.backend.TxPool().Pending()
 		if err != nil {
@@ -498,7 +497,7 @@ func (self *worker) commitNewWork() {
 
 	// TODO-Klaytn drop or missing tx
 	tstamp := tstart.Unix()
-	if self.nodetype == node.CONSENSUSNODE {
+	if self.nodetype == networks.CONSENSUSNODE {
 		if parent.Time().Cmp(new(big.Int).SetInt64(tstamp)) >= 0 {
 			//if self.nodetype == node.ENDPOINTNODE {
 			//	tstamp = parent.Time().Int64() + 5
@@ -538,7 +537,7 @@ func (self *worker) commitNewWork() {
 
 	// Create the current work task
 	work := self.current
-	if self.nodetype == node.CONSENSUSNODE {
+	if self.nodetype == networks.CONSENSUSNODE {
 		txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending)
 		work.commitTransactions(self.mux, txs, self.chain, self.rewardbase)
 

@@ -268,7 +268,7 @@ func New(ctx *node.ServiceContext, config *Config) (*CN, error) {
 
 	cn.protocolManager.wsendpoint = config.WsEndpoint
 
-	if cn.protocolManager.nodetype == node.CONSENSUSNODE {
+	if cn.protocolManager.nodetype == networks.CONSENSUSNODE {
 		wallet, err := cn.RewardbaseWallet()
 		if err != nil {
 			logger.Error("find err", "err", err)

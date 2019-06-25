@@ -32,7 +32,7 @@ import (
 	"github.com/ground-x/klaytn/crypto"
 	"github.com/ground-x/klaytn/crypto/sha3"
 	"github.com/ground-x/klaytn/governance"
-	"github.com/ground-x/klaytn/node"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/ser/rlp"
 	"github.com/ground-x/klaytn/storage/database"
@@ -109,7 +109,7 @@ func NewBCData(maxAccounts, numValidators int) (*BCData, error) {
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Setup istanbul consensus backend
-	engine := istanbulBackend.New(genesisAddr, istanbul.DefaultConfig, validatorPrivKeys[0], chainDb, gov, node.CONSENSUSNODE)
+	engine := istanbulBackend.New(genesisAddr, istanbul.DefaultConfig, validatorPrivKeys[0], chainDb, gov, networks.CONSENSUSNODE)
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Make a blockchain

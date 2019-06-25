@@ -23,7 +23,7 @@ package core
 import (
 	"github.com/ground-x/klaytn/common"
 	"github.com/ground-x/klaytn/consensus/istanbul"
-	"github.com/ground-x/klaytn/node"
+	"github.com/ground-x/klaytn/networks"
 	"math/big"
 	"sync"
 )
@@ -31,7 +31,7 @@ import (
 // sendNextRoundChange sends the ROUND CHANGE message with current round + 1
 func (c *core) sendNextRoundChange(loc string) {
 	cv := c.currentView()
-	if c.backend.NodeType() == node.CONSENSUSNODE {
+	if c.backend.NodeType() == networks.CONSENSUSNODE {
 		logger.Warn("[RC] sendNextRoundChange happened", "where", loc)
 	}
 	c.sendRoundChange(new(big.Int).Add(cv.Round, common.Big1))

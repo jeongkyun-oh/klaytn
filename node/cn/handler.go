@@ -36,7 +36,6 @@ import (
 	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
-	"github.com/ground-x/klaytn/node"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/ser/rlp"
 	"github.com/ground-x/klaytn/storage/database"
@@ -174,7 +173,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 				peer := manager.newPeer(int(version), p, rw)
 				pubKey, err := p.ID().Pubkey()
 				if err != nil {
-					if p.ConnType() == node.CONSENSUSNODE {
+					if p.ConnType() == networks.CONSENSUSNODE {
 						return err
 					}
 					peer.SetAddr(common.Address{})
@@ -198,7 +197,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 				}
 				pubKey, err := p.ID().Pubkey()
 				if err != nil {
-					if p.ConnType() == node.CONSENSUSNODE {
+					if p.ConnType() == networks.CONSENSUSNODE {
 						return err
 					}
 					peer.SetAddr(common.Address{})
@@ -1021,7 +1020,7 @@ func (pm *ProtocolManager) samplePeersToSendBlock(block *types.Block) []Peer {
 	hash := block.Hash()
 
 	switch pm.nodetype {
-	case node.CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		// If currNode is CN, sends block to sampled peers from (CN + PN), not to EN.
 		cnsWithoutBlock := pm.peers.CNWithoutBlock(hash)
 		sampledCNsWithoutBlock := samplingPeers(cnsWithoutBlock, sampleSize(cnsWithoutBlock))
@@ -1036,11 +1035,11 @@ func (pm *ProtocolManager) samplePeersToSendBlock(block *types.Block) []Peer {
 			"CN recipients", len(sampledCNsWithoutBlock), "PN recipients", len(pnsWithoutBlock), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))
 
 		return append(cnsWithoutBlock, pnsWithoutBlock...)
-	case node.PROXYNODE:
+	case networks.PROXYNODE:
 		// If currNode is PN, sends block to sampled peers from (PN + EN), not to CN.
 		peersWithoutBlock = pm.peers.PeersWithoutBlockExceptCN(hash)
 
-	case node.ENDPOINTNODE:
+	case networks.ENDPOINTNODE:
 		// If currNode is EN, sends block to sampled EN peers, not to EN nor CN.
 		peersWithoutBlock = pm.peers.ENWithoutBlock(hash)
 
@@ -1097,7 +1096,7 @@ func (pm *ProtocolManager) BroadcastBlockHash(block *types.Block) {
 func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 	// Broadcast transactions to a batch of peers not knowing about it
 	switch pm.nodetype {
-	case node.CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		pm.broadcastCNTx(txs)
 	default:
 		pm.broadcastNoCNTx(txs, false)
@@ -1105,7 +1104,7 @@ func (pm *ProtocolManager) BroadcastTxs(txs types.Transactions) {
 }
 
 func (pm *ProtocolManager) ReBroadcastTxs(txs types.Transactions) {
-	if pm.nodetype != node.CONSENSUSNODE {
+	if pm.nodetype != networks.CONSENSUSNODE {
 		pm.broadcastNoCNTx(txs, true)
 	}
 }
@@ -1141,16 +1140,16 @@ func (pm *ProtocolManager) sampleResendPeersByType(nodetype networks.ConnType) [
 	// TODO-Klaytn Need to tune pickSize. Currently use 2 for availability and efficiency.
 	var peers []Peer
 	switch nodetype {
-	case node.ENDPOINTNODE:
-		peers = pm.peers.TypePeers(node.PROXYNODE)
+	case networks.ENDPOINTNODE:
+		peers = pm.peers.TypePeers(networks.PROXYNODE)
 		if len(peers) == 0 {
-			peers = pm.peers.TypePeers(node.ENDPOINTNODE)
+			peers = pm.peers.TypePeers(networks.ENDPOINTNODE)
 		}
 		peers = samplingPeers(peers, 2)
-	case node.PROXYNODE:
-		peers = pm.peers.TypePeers(node.CONSENSUSNODE)
+	case networks.PROXYNODE:
+		peers = pm.peers.TypePeers(networks.CONSENSUSNODE)
 		if len(peers) == 0 {
-			peers = pm.peers.TypePeers(node.PROXYNODE)
+			peers = pm.peers.TypePeers(networks.PROXYNODE)
 		}
 		peers = samplingPeers(peers, 2)
 	default:
@@ -1181,8 +1180,8 @@ func (pm *ProtocolManager) broadcastNoCNTx(txs types.Transactions, resend bool) 
 				}
 				logger.Trace("Broadcast transaction", "hash", tx.Hash(), "recipients", len(peers))
 			}
-			if pm.nodetype == node.ENDPOINTNODE {
-				peers = pm.peers.TypePeersWithoutTx(tx.Hash(), node.PROXYNODE)
+			if pm.nodetype == networks.ENDPOINTNODE {
+				peers = pm.peers.TypePeersWithoutTx(tx.Hash(), networks.PROXYNODE)
 				for _, peer := range peers {
 					txset[peer] = append(txset[peer], tx)
 				}
@@ -1296,7 +1295,7 @@ func (pm *ProtocolManager) txResend(pending types.Transactions) {
 }
 
 func (pm *ProtocolManager) useTxResend() bool {
-	if pm.nodetype != node.CONSENSUSNODE && !pm.txResendUseLegacy {
+	if pm.nodetype != networks.CONSENSUSNODE && !pm.txResendUseLegacy {
 		return true
 	}
 	return false
