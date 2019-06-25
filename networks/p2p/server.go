@@ -1069,7 +1069,7 @@ func (srv *BaseServer) PeerCountByType() map[string]uint {
 	select {
 	case srv.peerOp <- func(ps map[discover.NodeID]*Peer) {
 		for _, peer := range ps {
-			key := ConvertConnTypeToString(peer.ConnType())
+			key := networks.ConvertNodeTypeToString(peer.ConnType())
 			pc[key]++
 			pc["total"]++
 		}
@@ -1922,37 +1922,6 @@ func ConvertConnType(nt discover.NodeType) networks.ConnType {
 	case discover.NodeTypeEN:
 		return networks.ENDPOINTNODE
 	case discover.NodeTypeBN:
-		return networks.BOOTNODE
-	default:
-		return networks.UNKNOWNNODE
-	}
-}
-
-func ConvertConnTypeToString(ct networks.ConnType) string {
-	switch ct {
-	case networks.CONSENSUSNODE:
-		return "cn"
-	case networks.PROXYNODE:
-		return "pn"
-	case networks.ENDPOINTNODE:
-		return "en"
-	case networks.BOOTNODE:
-		return "bn"
-	default:
-		return "unknown"
-	}
-}
-
-func ConvertStringToConnType(s string) networks.ConnType {
-	st := strings.ToLower(s)
-	switch st {
-	case "cn":
-		return networks.CONSENSUSNODE
-	case "pn":
-		return networks.PROXYNODE
-	case "en":
-		return networks.ENDPOINTNODE
-	case "bn":
 		return networks.BOOTNODE
 	default:
 		return networks.UNKNOWNNODE
