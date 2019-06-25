@@ -683,13 +683,13 @@ func (p *Peer) Info() *PeerInfo {
 		network.Trusted = rw.is(trustedConn)
 		network.Static = rw.is(staticDialedConn)
 		switch rw.conntype {
-		case CONSENSUSNODE:
+		case networks.CONSENSUSNODE:
 			network.NodeType = "cn"
-		case ENDPOINTNODE:
+		case networks.ENDPOINTNODE:
 			network.NodeType = "en"
-		case PROXYNODE:
+		case networks.PROXYNODE:
 			network.NodeType = "pn"
-		case BOOTNODE:
+		case networks.BOOTNODE:
 			network.NodeType = "bn"
 		default:
 			network.NodeType = "unknown"

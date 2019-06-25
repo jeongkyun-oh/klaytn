@@ -32,7 +32,6 @@ import (
 	"github.com/ground-x/klaytn/event"
 	"github.com/ground-x/klaytn/log"
 	"github.com/ground-x/klaytn/networks"
-	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/storage/database"
 	"sync/atomic"
@@ -120,7 +119,7 @@ func (self *Miner) Start() {
 	}
 	atomic.StoreInt32(&self.mining, 1)
 
-	if self.worker.nodetype == p2p.CONSENSUSNODE {
+	if self.worker.nodetype == networks.CONSENSUSNODE {
 		logger.Info("Starting mining operation")
 	}
 	self.worker.start()

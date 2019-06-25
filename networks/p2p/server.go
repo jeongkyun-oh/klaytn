@@ -1562,11 +1562,11 @@ func (srv *BaseServer) maxInboundConns() int {
 
 func (srv *BaseServer) maxDialedConns() int {
 	switch srv.ConnectionType {
-	case CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		return 0
-	case PROXYNODE:
+	case networks.PROXYNODE:
 		return 0
-	case ENDPOINTNODE:
+	case networks.ENDPOINTNODE:
 		if srv.NoDiscovery || srv.NoDial {
 			return 0
 		}
@@ -1575,7 +1575,7 @@ func (srv *BaseServer) maxDialedConns() int {
 			r = defaultDialRatio
 		}
 		return srv.Config.MaxPhysicalConnections / r
-	case BOOTNODE:
+	case networks.BOOTNODE:
 		return 0 // TODO check the bn for en
 	default:
 		logger.Crit("[p2p.Server] UnSupported Connection Type:", "ConnectionType", srv.ConnectionType)
@@ -1585,19 +1585,19 @@ func (srv *BaseServer) maxDialedConns() int {
 
 func (srv *BaseServer) getTypeStatics() map[dialType]typedStatic {
 	switch srv.ConnectionType {
-	case CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		tsMap := make(map[dialType]typedStatic)
 		tsMap[DT_CN] = typedStatic{100, 3} // TODO-Klaytn-Node Change to literal to constant (maxNodeCount, MaxTry)
 		return tsMap
-	case PROXYNODE:
+	case networks.PROXYNODE:
 		tsMap := make(map[dialType]typedStatic)
 		tsMap[DT_PN] = typedStatic{1, 3} // // TODO-Klaytn-Node Change to literal to constant (maxNodeCount, MaxTry)
 		return tsMap
-	case ENDPOINTNODE:
+	case networks.ENDPOINTNODE:
 		tsMap := make(map[dialType]typedStatic)
 		tsMap[DT_PN] = typedStatic{2, 3} // // TODO-Klaytn-Node Change to literal to constant (maxNodeCount, MaxTry)
 		return tsMap
-	case BOOTNODE:
+	case networks.BOOTNODE:
 		return nil
 	default:
 		logger.Crit("[p2p.Server] UnSupported Connection Type:", "ConnectionType", srv.ConnectionType)
@@ -1900,13 +1900,13 @@ func (srv *BaseServer) MaxPeers() int {
 
 func ConvertNodeType(ct networks.ConnType) discover.NodeType {
 	switch ct {
-	case CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		return discover.NodeTypeCN
-	case PROXYNODE:
+	case networks.PROXYNODE:
 		return discover.NodeTypePN
-	case ENDPOINTNODE:
+	case networks.ENDPOINTNODE:
 		return discover.NodeTypeEN
-	case BOOTNODE:
+	case networks.BOOTNODE:
 		return discover.NodeTypeBN
 	default:
 		return discover.NodeTypeUnknown // TODO-Klaytn-Node Maybe, call panic() func or Crit()
@@ -1916,27 +1916,27 @@ func ConvertNodeType(ct networks.ConnType) discover.NodeType {
 func ConvertConnType(nt discover.NodeType) networks.ConnType {
 	switch nt {
 	case discover.NodeTypeCN:
-		return CONSENSUSNODE
+		return networks.CONSENSUSNODE
 	case discover.NodeTypePN:
-		return PROXYNODE
+		return networks.PROXYNODE
 	case discover.NodeTypeEN:
-		return ENDPOINTNODE
+		return networks.ENDPOINTNODE
 	case discover.NodeTypeBN:
-		return BOOTNODE
+		return networks.BOOTNODE
 	default:
-		return UNKNOWNNODE
+		return networks.UNKNOWNNODE
 	}
 }
 
 func ConvertConnTypeToString(ct networks.ConnType) string {
 	switch ct {
-	case CONSENSUSNODE:
+	case networks.CONSENSUSNODE:
 		return "cn"
-	case PROXYNODE:
+	case networks.PROXYNODE:
 		return "pn"
-	case ENDPOINTNODE:
+	case networks.ENDPOINTNODE:
 		return "en"
-	case BOOTNODE:
+	case networks.BOOTNODE:
 		return "bn"
 	default:
 		return "unknown"
@@ -1947,14 +1947,14 @@ func ConvertStringToConnType(s string) networks.ConnType {
 	st := strings.ToLower(s)
 	switch st {
 	case "cn":
-		return CONSENSUSNODE
+		return networks.CONSENSUSNODE
 	case "pn":
-		return PROXYNODE
+		return networks.PROXYNODE
 	case "en":
-		return ENDPOINTNODE
+		return networks.ENDPOINTNODE
 	case "bn":
-		return BOOTNODE
+		return networks.BOOTNODE
 	default:
-		return UNKNOWNNODE
+		return networks.UNKNOWNNODE
 	}
 }
