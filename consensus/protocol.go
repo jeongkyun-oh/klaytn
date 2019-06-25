@@ -23,6 +23,7 @@ package consensus
 import (
 	"github.com/ground-x/klaytn/blockchain/types"
 	"github.com/ground-x/klaytn/common"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 )
 
@@ -64,7 +65,7 @@ type Broadcaster interface {
 
 	GetENPeers() map[common.Address]Peer
 
-	RegisterValidator(conType p2p.ConnType, validator p2p.PeerTypeValidator)
+	RegisterValidator(conType networks.ConnType, validator p2p.PeerTypeValidator)
 }
 
 // Peer defines the interface to communicate with peer

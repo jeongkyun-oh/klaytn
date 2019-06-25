@@ -23,6 +23,7 @@ package p2p
 import (
 	"errors"
 	"fmt"
+	"github.com/ground-x/klaytn/networks"
 	"io"
 	"net"
 	"sort"
@@ -711,7 +712,7 @@ func (p *Peer) Info() *PeerInfo {
 	return info
 }
 
-func (p *Peer) ConnType() ConnType {
+func (p *Peer) ConnType() networks.ConnType {
 	return p.rws[ConnDefault].conntype
 }
 

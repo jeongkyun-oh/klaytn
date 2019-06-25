@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the klaytn library. If not, see <http://www.gnu.org/licenses/>.
 
-package params
+package networks
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -58,4 +59,16 @@ func ConvertNodeTypeToString(nodetype ConnType) string {
 	default:
 		return "UNKNOWN"
 	}
+}
+
+func (ct ConnType) Valid() bool {
+	if int(ct) > 255 {
+		return false
+	}
+	return true
+}
+
+func (c ConnType) String() string {
+	s := fmt.Sprintf("%d", int(c))
+	return s
 }

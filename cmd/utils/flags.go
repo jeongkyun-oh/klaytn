@@ -33,6 +33,7 @@ import (
 	"github.com/ground-x/klaytn/datasync/downloader"
 	"github.com/ground-x/klaytn/log"
 	"github.com/ground-x/klaytn/metrics"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"github.com/ground-x/klaytn/networks/p2p/nat"
@@ -969,7 +970,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	cfg.NetworkID, _ = getNetworkId(ctx)
 }
 
-func convertNodeType(nodetype string) p2p.ConnType {
+func convertNodeType(nodetype string) networks.ConnType {
 	switch strings.ToLower(nodetype) {
 	case "cn":
 		return node.CONSENSUSNODE
@@ -983,7 +984,7 @@ func convertNodeType(nodetype string) p2p.ConnType {
 }
 
 func convertNodeTypeToString(nodetype int) string {
-	switch p2p.ConnType(nodetype) {
+	switch networks.ConnType(nodetype) {
 	case node.CONSENSUSNODE:
 		return "CN"
 	case node.PROXYNODE:

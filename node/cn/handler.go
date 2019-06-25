@@ -33,6 +33,7 @@ import (
 	"github.com/ground-x/klaytn/datasync/downloader"
 	"github.com/ground-x/klaytn/datasync/fetcher"
 	"github.com/ground-x/klaytn/event"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"github.com/ground-x/klaytn/node"
@@ -116,13 +117,13 @@ type ProtocolManager struct {
 
 	wsendpoint string
 
-	nodetype          p2p.ConnType
+	nodetype          networks.ConnType
 	txResendUseLegacy bool
 }
 
 // NewProtocolManager returns a new Klaytn sub protocol manager. The Klaytn sub protocol manages peers capable
 // with the Klaytn network.
-func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *blockchain.BlockChain, chainDB database.DBManager, nodetype p2p.ConnType, cnconfig *Config) (*ProtocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *blockchain.BlockChain, chainDB database.DBManager, nodetype networks.ConnType, cnconfig *Config) (*ProtocolManager, error) {
 	// Create the protocol maanger with the base fields
 	manager := &ProtocolManager{
 		networkId:         networkId,
@@ -256,7 +257,7 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 }
 
 // istanbul BFT
-func (pm *ProtocolManager) RegisterValidator(conType p2p.ConnType, validator p2p.PeerTypeValidator) {
+func (pm *ProtocolManager) RegisterValidator(conType networks.ConnType, validator p2p.PeerTypeValidator) {
 	pm.peers.validator[conType] = validator
 }
 
@@ -1136,7 +1137,7 @@ func (pm *ProtocolManager) broadcastCNTx(txs types.Transactions) {
 	}
 }
 
-func (pm *ProtocolManager) sampleResendPeersByType(nodetype p2p.ConnType) []Peer {
+func (pm *ProtocolManager) sampleResendPeersByType(nodetype networks.ConnType) []Peer {
 	// TODO-Klaytn Need to tune pickSize. Currently use 2 for availability and efficiency.
 	var peers []Peer
 	switch nodetype {

@@ -25,6 +25,7 @@ import (
 	"errors"
 	"github.com/ground-x/klaytn/crypto"
 	"github.com/ground-x/klaytn/crypto/sha3"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"math/rand"
 	"net"
@@ -63,7 +64,7 @@ func (c *testTransport) doProtoHandshake(our *protoHandshake) (*protoHandshake, 
 	return &protoHandshake{ID: c.id, Name: "test"}, nil
 }
 
-func (c *testTransport) doConnTypeHandshake(myConnType ConnType) (ConnType, error) {
+func (c *testTransport) doConnTypeHandshake(myConnType networks.ConnType) (networks.ConnType, error) {
 	return 1, nil
 }
 
@@ -516,7 +517,7 @@ type setupTransport struct {
 	closeErr error
 }
 
-func (c *setupTransport) doConnTypeHandshake(myConnType ConnType) (ConnType, error) {
+func (c *setupTransport) doConnTypeHandshake(myConnType networks.ConnType) (networks.ConnType, error) {
 	return 1, nil
 }
 

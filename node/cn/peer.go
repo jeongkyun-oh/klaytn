@@ -28,6 +28,7 @@ import (
 	"github.com/ground-x/klaytn/consensus"
 	"github.com/ground-x/klaytn/crypto"
 	"github.com/ground-x/klaytn/datasync/downloader"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"github.com/ground-x/klaytn/ser/rlp"
@@ -174,7 +175,7 @@ type Peer interface {
 	Handshake(network uint64, chainID, td *big.Int, head common.Hash, genesis common.Hash) error
 
 	// ConnType returns the conntype of the peer.
-	ConnType() p2p.ConnType
+	ConnType() networks.ConnType
 
 	// GetID returns the id of the peer.
 	GetID() string
@@ -652,7 +653,7 @@ func (p *basePeer) String() string {
 }
 
 // ConnType returns the conntype of the peer.
-func (p *basePeer) ConnType() p2p.ConnType {
+func (p *basePeer) ConnType() networks.ConnType {
 	return p.Peer.ConnType()
 }
 
@@ -1085,7 +1086,7 @@ type peerSet struct {
 	lock    sync.RWMutex
 	closed  bool
 
-	validator map[p2p.ConnType]p2p.PeerTypeValidator
+	validator map[networks.ConnType]p2p.PeerTypeValidator
 }
 
 // newPeerSet creates a new peer set to track the active participants.
@@ -1095,7 +1096,7 @@ func newPeerSet() *peerSet {
 		cnpeers:   make(map[common.Address]Peer),
 		pnpeers:   make(map[common.Address]Peer),
 		enpeers:   make(map[common.Address]Peer),
-		validator: make(map[p2p.ConnType]p2p.PeerTypeValidator),
+		validator: make(map[networks.ConnType]p2p.PeerTypeValidator),
 	}
 
 	peerSet.validator[node.CONSENSUSNODE] = ByPassValidator{}
@@ -1256,7 +1257,7 @@ func (ps *peerSet) PeersWithoutBlock(hash common.Hash) []Peer {
 	return list
 }
 
-func (ps *peerSet) TypePeersWithoutBlock(hash common.Hash, nodetype p2p.ConnType) []Peer {
+func (ps *peerSet) TypePeersWithoutBlock(hash common.Hash, nodetype networks.ConnType) []Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -1321,7 +1322,7 @@ func (ps *peerSet) ENWithoutBlock(hash common.Hash) []Peer {
 	return list
 }
 
-func (ps *peerSet) TypePeers(nodetype p2p.ConnType) []Peer {
+func (ps *peerSet) TypePeers(nodetype networks.ConnType) []Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 	list := make([]Peer, 0, len(ps.peers))
@@ -1348,7 +1349,7 @@ func (ps *peerSet) PeersWithoutTx(hash common.Hash) []Peer {
 	return list
 }
 
-func (ps *peerSet) TypePeersWithoutTx(hash common.Hash, nodetype p2p.ConnType) []Peer {
+func (ps *peerSet) TypePeersWithoutTx(hash common.Hash, nodetype networks.ConnType) []Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -1361,7 +1362,7 @@ func (ps *peerSet) TypePeersWithoutTx(hash common.Hash, nodetype p2p.ConnType) [
 	return list
 }
 
-func (ps *peerSet) TypePeersWithTx(hash common.Hash, nodetype p2p.ConnType) []Peer {
+func (ps *peerSet) TypePeersWithTx(hash common.Hash, nodetype networks.ConnType) []Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -1374,7 +1375,7 @@ func (ps *peerSet) TypePeersWithTx(hash common.Hash, nodetype p2p.ConnType) []Pe
 	return list
 }
 
-func (ps *peerSet) AnotherTypePeersWithoutTx(hash common.Hash, nodetype p2p.ConnType) []Peer {
+func (ps *peerSet) AnotherTypePeersWithoutTx(hash common.Hash, nodetype networks.ConnType) []Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 
@@ -1388,7 +1389,7 @@ func (ps *peerSet) AnotherTypePeersWithoutTx(hash common.Hash, nodetype p2p.Conn
 }
 
 // TODO-Klaytn drop or missing tx
-func (ps *peerSet) AnotherTypePeersWithTx(hash common.Hash, nodetype p2p.ConnType) []Peer {
+func (ps *peerSet) AnotherTypePeersWithTx(hash common.Hash, nodetype networks.ConnType) []Peer {
 	ps.lock.RLock()
 	defer ps.lock.RUnlock()
 

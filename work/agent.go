@@ -22,7 +22,7 @@ package work
 
 import (
 	"github.com/ground-x/klaytn/consensus"
-	"github.com/ground-x/klaytn/networks/p2p"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/node"
 	"sync"
 	"sync/atomic"
@@ -41,10 +41,10 @@ type CpuAgent struct {
 
 	isMining int32 // isMining indicates whether the agent is currently mining
 
-	nodetype p2p.ConnType
+	nodetype networks.ConnType
 }
 
-func NewCpuAgent(chain consensus.ChainReader, engine consensus.Engine, nodetype p2p.ConnType) *CpuAgent {
+func NewCpuAgent(chain consensus.ChainReader, engine consensus.Engine, nodetype networks.ConnType) *CpuAgent {
 	miner := &CpuAgent{
 		chain:    chain,
 		engine:   engine,

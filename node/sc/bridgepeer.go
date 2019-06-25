@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/ground-x/klaytn/blockchain/types"
 	"github.com/ground-x/klaytn/common"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"math/big"
@@ -78,7 +79,7 @@ type BridgePeer interface {
 	Handshake(network uint64, chainID, td *big.Int, head common.Hash) error
 
 	// ConnType returns the conntype of the peer.
-	ConnType() p2p.ConnType
+	ConnType() networks.ConnType
 
 	// GetID returns the id of the peer.
 	GetID() string
@@ -308,7 +309,7 @@ func (p *baseBridgePeer) String() string {
 }
 
 // ConnType returns the conntype of the peer.
-func (p *baseBridgePeer) ConnType() p2p.ConnType {
+func (p *baseBridgePeer) ConnType() networks.ConnType {
 	return p.Peer.ConnType()
 }
 

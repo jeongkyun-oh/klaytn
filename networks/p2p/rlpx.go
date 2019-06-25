@@ -32,6 +32,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/ground-x/klaytn/networks"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -126,7 +127,7 @@ func (t *rlpx) close(err error) {
 	t.fd.Close()
 }
 
-func (c *rlpx) writeType(myConnType ConnType) error {
+func (c *rlpx) writeType(myConnType networks.ConnType) error {
 	if !myConnType.Valid() {
 		return errors.New("Connection Type is not valid")
 	}
@@ -146,7 +147,7 @@ func (c *rlpx) readType() (error, byte) {
 	return nil, byteVal
 }
 
-func (c *rlpx) doConnTypeHandshake(myConnType ConnType) (ConnType, error) {
+func (c *rlpx) doConnTypeHandshake(myConnType networks.ConnType) (networks.ConnType, error) {
 	var e error
 	var b byte
 	werr := make(chan error, 1)
@@ -158,7 +159,7 @@ func (c *rlpx) doConnTypeHandshake(myConnType ConnType) (ConnType, error) {
 	if e = <-werr; e != nil {
 		return ConnTypeUndefined, e
 	}
-	conntype := ConnType(int(b))
+	conntype := networks.ConnType(int(b))
 	if !conntype.Valid() {
 		return ConnTypeUndefined, fmt.Errorf("invalid connection type: %v", conntype)
 	}

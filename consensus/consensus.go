@@ -24,6 +24,7 @@ import (
 	"github.com/ground-x/klaytn/blockchain/state"
 	"github.com/ground-x/klaytn/blockchain/types"
 	"github.com/ground-x/klaytn/common"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/rpc"
 	"github.com/ground-x/klaytn/params"
@@ -119,7 +120,7 @@ type Handler interface {
 	HandleMsg(address common.Address, data p2p.Msg) (bool, error)
 
 	// SetBroadcaster sets the broadcaster to send message to peers
-	SetBroadcaster(Broadcaster, p2p.ConnType)
+	SetBroadcaster(Broadcaster, networks.ConnType)
 
 	// RegisterConsensusMsgCode registers the channel of consensus msg.
 	RegisterConsensusMsgCode(Peer)

@@ -33,7 +33,7 @@ import (
 	"github.com/ground-x/klaytn/event"
 	"github.com/ground-x/klaytn/governance"
 	"github.com/ground-x/klaytn/log"
-	"github.com/ground-x/klaytn/networks/p2p"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/storage/database"
 	"github.com/hashicorp/golang-lru"
@@ -50,7 +50,7 @@ const (
 
 var logger = log.NewModuleLogger(log.ConsensusIstanbulBackend)
 
-func New(rewardbase common.Address, config *istanbul.Config, privateKey *ecdsa.PrivateKey, db database.DBManager, governance *governance.Governance, nodetype p2p.ConnType) consensus.Istanbul {
+func New(rewardbase common.Address, config *istanbul.Config, privateKey *ecdsa.PrivateKey, db database.DBManager, governance *governance.Governance, nodetype networks.ConnType) consensus.Istanbul {
 
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
@@ -122,10 +122,10 @@ type backend struct {
 	lastGovernanceBlock uint64
 
 	// Node type
-	nodetype p2p.ConnType
+	nodetype networks.ConnType
 }
 
-func (sb *backend) NodeType() p2p.ConnType {
+func (sb *backend) NodeType() networks.ConnType {
 	return sb.nodetype
 }
 

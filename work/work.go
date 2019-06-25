@@ -31,6 +31,7 @@ import (
 	"github.com/ground-x/klaytn/datasync/downloader"
 	"github.com/ground-x/klaytn/event"
 	"github.com/ground-x/klaytn/log"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/storage/database"
@@ -63,7 +64,7 @@ type Miner struct {
 	shouldStart int32 // should start indicates whether we should start after sync
 }
 
-func New(backend Backend, config *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, nodetype p2p.ConnType, rewardbase common.Address, TxResendUseLegacy bool) *Miner {
+func New(backend Backend, config *params.ChainConfig, mux *event.TypeMux, engine consensus.Engine, nodetype networks.ConnType, rewardbase common.Address, TxResendUseLegacy bool) *Miner {
 	miner := &Miner{
 		backend:  backend,
 		mux:      mux,

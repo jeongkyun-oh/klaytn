@@ -24,6 +24,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ground-x/klaytn/networks"
 	"net"
 	"strconv"
 	"strings"
@@ -80,7 +81,7 @@ type Config struct {
 	// ConnectionType is a type of connection like Consensus or Normal
 	// described at ConnType
 	// When the connection is established, each peer exchange each connection type
-	ConnectionType ConnType
+	ConnectionType networks.ConnType
 
 	// MaxPendingPeers is the maximum number of peers that can be pending in the
 	// handshake phase, counted separately for inbound and outbound connections.
@@ -945,7 +946,7 @@ const (
 type ConnType int
 
 const (
-	ConnTypeUndefined ConnType = -1
+	ConnTypeUndefined networks.ConnType = -1
 )
 
 type PortOrder int
@@ -960,18 +961,18 @@ type conn struct {
 	fd net.Conn
 	transport
 	flags         connFlag
-	conntype      ConnType        // valid after the encryption handshake at the inbound connection case
-	cont          chan error      // The run loop uses cont to signal errors to SetupConn.
-	id            discover.NodeID // valid after the encryption handshake
-	caps          []Cap           // valid after the protocol handshake
-	name          string          // valid after the protocol handshake
-	onParentChain bool            // The run loop uses this to check parent/child chain node.
-	portOrder     PortOrder       // portOrder is the order of the ports that should be connected in multi-channel.
-	multiChannel  bool            // multiChannel is whether the peer is using multi-channel.
+	conntype      networks.ConnType // valid after the encryption handshake at the inbound connection case
+	cont          chan error        // The run loop uses cont to signal errors to SetupConn.
+	id            discover.NodeID   // valid after the encryption handshake
+	caps          []Cap             // valid after the protocol handshake
+	name          string            // valid after the protocol handshake
+	onParentChain bool              // The run loop uses this to check parent/child chain node.
+	portOrder     PortOrder         // portOrder is the order of the ports that should be connected in multi-channel.
+	multiChannel  bool              // multiChannel is whether the peer is using multi-channel.
 }
 
 type transport interface {
-	doConnTypeHandshake(myConnType ConnType) (ConnType, error)
+	doConnTypeHandshake(myConnType networks.ConnType) (networks.ConnType, error)
 	// The two handshakes.
 	doEncHandshake(prv *ecdsa.PrivateKey, dialDest *discover.Node) (discover.NodeID, error)
 	doProtoHandshake(our *protoHandshake) (*protoHandshake, error)
@@ -995,13 +996,6 @@ func (c *conn) String() string {
 	return s
 }
 
-func (ct ConnType) Valid() bool {
-	if int(ct) > 255 {
-		return false
-	}
-	return true
-}
-
 func (c *conn) Inbound() bool {
 	return c.flags&inboundConn != 0
 }
@@ -1023,11 +1017,6 @@ func (f connFlag) String() string {
 	if s != "" {
 		s = s[1:]
 	}
-	return s
-}
-
-func (c ConnType) String() string {
-	s := fmt.Sprintf("%d", int(c))
 	return s
 }
 
@@ -1909,7 +1898,7 @@ func (srv *BaseServer) MaxPeers() int {
 	return srv.Config.MaxPhysicalConnections
 }
 
-func ConvertNodeType(ct ConnType) discover.NodeType {
+func ConvertNodeType(ct networks.ConnType) discover.NodeType {
 	switch ct {
 	case CONSENSUSNODE:
 		return discover.NodeTypeCN
@@ -1924,7 +1913,7 @@ func ConvertNodeType(ct ConnType) discover.NodeType {
 	}
 }
 
-func ConvertConnType(nt discover.NodeType) ConnType {
+func ConvertConnType(nt discover.NodeType) networks.ConnType {
 	switch nt {
 	case discover.NodeTypeCN:
 		return CONSENSUSNODE
@@ -1939,7 +1928,7 @@ func ConvertConnType(nt discover.NodeType) ConnType {
 	}
 }
 
-func ConvertConnTypeToString(ct ConnType) string {
+func ConvertConnTypeToString(ct networks.ConnType) string {
 	switch ct {
 	case CONSENSUSNODE:
 		return "cn"
@@ -1954,7 +1943,7 @@ func ConvertConnTypeToString(ct ConnType) string {
 	}
 }
 
-func ConvertStringToConnType(s string) ConnType {
+func ConvertStringToConnType(s string) networks.ConnType {
 	st := strings.ToLower(s)
 	switch st {
 	case "cn":

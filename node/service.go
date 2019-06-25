@@ -24,6 +24,7 @@ import (
 	"crypto/ecdsa"
 	"github.com/ground-x/klaytn/accounts"
 	"github.com/ground-x/klaytn/event"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/rpc"
 	"github.com/ground-x/klaytn/storage/database"
@@ -70,7 +71,7 @@ func (ctx *ServiceContext) NodeKey() *ecdsa.PrivateKey {
 	return ctx.config.NodeKey()
 }
 
-func (ctx *ServiceContext) NodeType() p2p.ConnType {
+func (ctx *ServiceContext) NodeType() networks.ConnType {
 	return ctx.config.P2P.ConnectionType
 }
 

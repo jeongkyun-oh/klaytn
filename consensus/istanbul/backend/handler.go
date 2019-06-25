@@ -25,6 +25,7 @@ import (
 	"github.com/ground-x/klaytn/common"
 	"github.com/ground-x/klaytn/consensus"
 	"github.com/ground-x/klaytn/consensus/istanbul"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/node"
 	"github.com/hashicorp/golang-lru"
@@ -110,7 +111,7 @@ func (sb *backend) ValidatePeerType(addr common.Address) error {
 }
 
 // SetBroadcaster implements consensus.Handler.SetBroadcaster
-func (sb *backend) SetBroadcaster(broadcaster consensus.Broadcaster, nodetype p2p.ConnType) {
+func (sb *backend) SetBroadcaster(broadcaster consensus.Broadcaster, nodetype networks.ConnType) {
 	sb.broadcaster = broadcaster
 	if nodetype == node.CONSENSUSNODE {
 		sb.broadcaster.RegisterValidator(node.CONSENSUSNODE, sb)

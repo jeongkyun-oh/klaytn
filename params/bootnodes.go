@@ -20,14 +20,17 @@
 
 package params
 
-import "github.com/ground-x/klaytn/networks/p2p"
+import (
+	"github.com/ground-x/klaytn/networks"
+	"github.com/ground-x/klaytn/networks/p2p"
+)
 
 type bootnodesByTypes struct {
 	Addrs []string
 }
 
 // MainnetBootnodes are the URLs of bootnodes running on the Klaytn main network.
-var MainnetBootnodes = map[p2p.ConnType]bootnodesByTypes{
+var MainnetBootnodes = map[networks.ConnType]bootnodesByTypes{
 	p2p.CONSENSUSNODE: {
 		[]string{},
 	},
@@ -48,7 +51,7 @@ var MainnetBootnodes = map[p2p.ConnType]bootnodesByTypes{
 }
 
 // BaobabBootnodes are the URLs of bootnodes running on the Baobab test network.
-var BaobabBootnodes = map[p2p.ConnType]bootnodesByTypes{
+var BaobabBootnodes = map[networks.ConnType]bootnodesByTypes{
 	p2p.CONSENSUSNODE: {
 		[]string{
 			"kni://d8adb5a300d7ee0fcde4d6777362c1e0e03d208a2f3978d6d3993a2ada4a64af2580b97d4b4bf21201b1596cea761ecf53f196153bae8bbb0948b3c6397303b2@ston98.baobab.klaytn.net:32323?ntype=bn",

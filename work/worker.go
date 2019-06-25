@@ -29,7 +29,7 @@ import (
 	"github.com/ground-x/klaytn/consensus"
 	"github.com/ground-x/klaytn/event"
 	"github.com/ground-x/klaytn/metrics"
-	"github.com/ground-x/klaytn/networks/p2p"
+	"github.com/ground-x/klaytn/networks"
 	"github.com/ground-x/klaytn/node"
 	"github.com/ground-x/klaytn/params"
 	"github.com/ground-x/klaytn/storage/database"
@@ -141,10 +141,10 @@ type worker struct {
 	mining int32
 	atWork int32
 
-	nodetype p2p.ConnType
+	nodetype networks.ConnType
 }
 
-func newWorker(config *params.ChainConfig, engine consensus.Engine, rewardbase common.Address, backend Backend, mux *event.TypeMux, nodetype p2p.ConnType, TxResendUseLegacy bool) *worker {
+func newWorker(config *params.ChainConfig, engine consensus.Engine, rewardbase common.Address, backend Backend, mux *event.TypeMux, nodetype networks.ConnType, TxResendUseLegacy bool) *worker {
 	worker := &worker{
 		config:      config,
 		engine:      engine,
