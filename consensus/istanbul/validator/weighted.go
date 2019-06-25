@@ -578,13 +578,7 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64, config
 		return err
 	}
 
-	// TODO-Klaytn-Issue3149 Remove this branch when Baobab can use the mainnet code
-	var newStakingInfo *reward.StakingInfo
-	if config.ChainID.Int64() == params.ChainIDBaobab {
-		newStakingInfo = reward.GetStakingInfoFromStakingCache(blockNum)
-	} else {
-		newStakingInfo = reward.GetStakingInfoFromStakingCache(blockNum + 1)
-	}
+	newStakingInfo := reward.GetStakingInfoFromStakingCache(blockNum + 1)
 
 	valSet.stakingInfo = newStakingInfo
 	if valSet.stakingInfo == nil {
