@@ -16,5 +16,5 @@
 //
 // +build none
 
-// TODO-Klaytn-Docs: Write a package document
+// examples implements a simulation network which contains nodes running a simple ping-pong protocol.
 package main
