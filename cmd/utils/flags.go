@@ -935,7 +935,7 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 		nodeType = NodeTypeFlag.Value
 	}
 
-	cfg.ConnectionType = convertNodeType(nodeType)
+	cfg.ConnectionType = networks.ConvertStringToNodeType(nodeType)
 	if cfg.ConnectionType == networks.UNKNOWNNODE {
 		logger.Crit("Unknown node type", "nodetype", nodeType)
 	}
@@ -968,33 +968,6 @@ func SetP2PConfig(ctx *cli.Context, cfg *p2p.Config) {
 	}
 
 	cfg.NetworkID, _ = getNetworkId(ctx)
-}
-
-func convertNodeType(nodetype string) networks.ConnType {
-	switch strings.ToLower(nodetype) {
-	case "cn":
-		return networks.CONSENSUSNODE
-	case "pn":
-		return networks.PROXYNODE
-	case "en":
-		return networks.ENDPOINTNODE
-	default:
-		return networks.UNKNOWNNODE
-	}
-}
-
-func convertNodeTypeToString(nodetype int) string {
-	switch networks.ConnType(nodetype) {
-	case networks.CONSENSUSNODE:
-		return "CN"
-	case networks.PROXYNODE:
-		return "PN"
-	case networks.ENDPOINTNODE:
-		return "EN"
-	default:
-		logger.Error("failed to convert nodetype as string", "err", "unknown nodetype")
-		return "unknown"
-	}
 }
 
 // SetNodeConfig applies node-related command line flags to the config.
