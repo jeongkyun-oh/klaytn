@@ -26,7 +26,7 @@ If you find a bug or other issues in Klaytn, please [submit an issue](https://gi
 
 - The issue is not a duplicate issue.
 - The issue has not been fixed in the latest release of Klaytn.
-Please do not use the issue tracker for personal support requests. Use developer@klaytn.com
+Please do not use the issue tracker for personal support requests. Use developer@klaytn.com for the personal support requests.
 
 When you report a bug, please make sure that your report has the following information.
 - Steps to reproduce the issue.
