@@ -2,7 +2,7 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: klay klay-cross evm all test clean
+.PHONY: klay klay-cross all test clean
 .PHONY: klay-linux klay-linux-386 klay-linux-amd64 klay-linux-mips64 klay-linux-mips64le
 .PHONY: klay-linux-arm klay-linux-arm-5 klay-linux-arm-6 klay-linux-arm-7 klay-linux-arm64
 .PHONY: klay-darwin klay-darwin-386 klay-darwin-amd64
@@ -55,11 +55,6 @@ abigen:
 	build/env.sh go run build/ci.go install ./cmd/abigen
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/abigen\" to launch abigen."
-
-evm:
-	build/env.sh go run build/ci.go install ./cmd/evm
-	@echo "Done building."
-	@echo "Run \"$(GOBIN)/evm\" to launch evm."
 
 all:
 	build/env.sh go run build/ci.go install
