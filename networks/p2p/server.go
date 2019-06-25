@@ -934,8 +934,6 @@ const (
 	trustedConn
 )
 
-type ConnType int
-
 const (
 	ConnTypeUndefined networks.ConnType = -1
 )
