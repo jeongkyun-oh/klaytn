@@ -366,7 +366,7 @@ func (srv *MultiChannelServer) Start() (err error) {
 			Conn:         conn,
 			Addr:         realaddr,
 			Id:           discover.PubkeyID(&srv.PrivateKey.PublicKey),
-			NodeType:     ConvertNodeType(srv.ConnectionType),
+			NodeType:     networks.ConvertNodeType(srv.ConnectionType),
 			NetworkID:    srv.NetworkID,
 		}
 
@@ -1274,7 +1274,7 @@ func (srv *BaseServer) Start() (err error) {
 			Conn:         conn,
 			Addr:         realaddr,
 			Id:           discover.PubkeyID(&srv.PrivateKey.PublicKey),
-			NodeType:     ConvertNodeType(srv.ConnectionType),
+			NodeType:     networks.ConvertNodeType(srv.ConnectionType),
 			NetworkID:    srv.NetworkID,
 		}
 
@@ -1887,34 +1887,4 @@ func (srv *BaseServer) Name() string {
 // MaxPhysicalConnections returns maximum count of peers.
 func (srv *BaseServer) MaxPeers() int {
 	return srv.Config.MaxPhysicalConnections
-}
-
-func ConvertNodeType(ct networks.ConnType) discover.NodeType {
-	switch ct {
-	case networks.CONSENSUSNODE:
-		return discover.NodeTypeCN
-	case networks.PROXYNODE:
-		return discover.NodeTypePN
-	case networks.ENDPOINTNODE:
-		return discover.NodeTypeEN
-	case networks.BOOTNODE:
-		return discover.NodeTypeBN
-	default:
-		return discover.NodeTypeUnknown // TODO-Klaytn-Node Maybe, call panic() func or Crit()
-	}
-}
-
-func ConvertConnType(nt discover.NodeType) networks.ConnType {
-	switch nt {
-	case discover.NodeTypeCN:
-		return networks.CONSENSUSNODE
-	case discover.NodeTypePN:
-		return networks.PROXYNODE
-	case discover.NodeTypeEN:
-		return networks.ENDPOINTNODE
-	case discover.NodeTypeBN:
-		return networks.BOOTNODE
-	default:
-		return networks.UNKNOWNNODE
-	}
 }

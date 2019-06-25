@@ -28,7 +28,6 @@ import (
 	"github.com/ground-x/klaytn/cmd/utils/nodecmd"
 	"github.com/ground-x/klaytn/log"
 	"github.com/ground-x/klaytn/networks"
-	"github.com/ground-x/klaytn/networks/p2p"
 	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"github.com/ground-x/klaytn/networks/p2p/nat"
 	"gopkg.in/urfave/cli.v1"
@@ -143,7 +142,7 @@ func bootnode(ctx *cli.Context) error {
 		Conn:            conn,
 		Addr:            realaddr,
 		Id:              discover.PubkeyID(&bcfg.nodeKey.PublicKey),
-		NodeType:        p2p.ConvertNodeType(networks.BOOTNODE),
+		NodeType:        networks.ConvertNodeType(networks.BOOTNODE),
 		AuthorizedNodes: bcfg.AuthorizedNodes,
 	}
 

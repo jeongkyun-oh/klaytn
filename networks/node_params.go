@@ -18,6 +18,7 @@ package networks
 
 import (
 	"fmt"
+	"github.com/ground-x/klaytn/networks/p2p/discover"
 	"strings"
 )
 
@@ -58,6 +59,36 @@ func ConvertNodeTypeToString(nodetype ConnType) string {
 		return "BN"
 	default:
 		return "UNKNOWN"
+	}
+}
+
+func ConvertNodeType(ct ConnType) discover.NodeType {
+	switch ct {
+	case CONSENSUSNODE:
+		return discover.NodeTypeCN
+	case PROXYNODE:
+		return discover.NodeTypePN
+	case ENDPOINTNODE:
+		return discover.NodeTypeEN
+	case BOOTNODE:
+		return discover.NodeTypeBN
+	default:
+		return discover.NodeTypeUnknown // TODO-Klaytn-Node Maybe, call panic() func or Crit()
+	}
+}
+
+func ConvertConnType(nt discover.NodeType) ConnType {
+	switch nt {
+	case discover.NodeTypeCN:
+		return CONSENSUSNODE
+	case discover.NodeTypePN:
+		return PROXYNODE
+	case discover.NodeTypeEN:
+		return ENDPOINTNODE
+	case discover.NodeTypeBN:
+		return BOOTNODE
+	default:
+		return UNKNOWNNODE
 	}
 }
 
