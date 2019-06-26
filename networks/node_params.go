@@ -33,14 +33,14 @@ const (
 )
 
 func ConvertStringToNodeType(nodetype string) ConnType {
-	switch strings.ToLower(nodetype) {
-	case "cn":
+	switch strings.ToUpper(nodetype) {
+	case "CN":
 		return CONSENSUSNODE
-	case "en":
+	case "EN":
 		return ENDPOINTNODE
-	case "pn":
+	case "PN":
 		return PROXYNODE
-	case "bn":
+	case "BN":
 		return BOOTNODE
 	default:
 		return UNKNOWNNODE
