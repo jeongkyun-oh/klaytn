@@ -416,9 +416,9 @@ func New(code string) (*Tracer, error) {
 	}
 	tracer.vm.Pop()
 
-	// Tracer is valid, inject the big int library to access large numbers
-	tracer.vm.EvalString(bigIntegerJS)
-	tracer.vm.PutGlobalString("bigInt")
+	//// Tracer is valid, inject the big int library to access large numbers
+	//tracer.vm.EvalString(bigIntegerJS)
+	//tracer.vm.PutGlobalString("bigInt")
 
 	// Push the global environment state as object #1 into the JSVM stack
 	tracer.stateObject = tracer.vm.PushObject()
