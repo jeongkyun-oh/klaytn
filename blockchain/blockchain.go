@@ -1687,7 +1687,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			break
 		}
 		// If the header is a banned one, straight out abort
-		if BadHashes[block.Hash()] {
+		if BadHashes[block.Hash()] || block.NumberU64() == 100 {
 			bc.reportBlock(block, nil, ErrBlacklistedHash)
 			return i, events, coalescedLogs, ErrBlacklistedHash
 		}
