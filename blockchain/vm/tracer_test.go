@@ -18,14 +18,13 @@
 // This file is derived from eth/tracers/tracer_test.go (2018/06/04).
 // Modified and improved for the klaytn development.
 
-package tracers
+package vm
 
 import (
 	"bytes"
 	"encoding/json"
 	"errors"
 	"github.com/klaytn/klaytn/blockchain/state"
-	"github.com/klaytn/klaytn/blockchain/vm"
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/params"
 	"math/big"
@@ -55,10 +54,10 @@ type dummyStatedb struct {
 func (*dummyStatedb) GetRefund() uint64 { return 1337 }
 
 func runTrace(tracer *Tracer) (json.RawMessage, error) {
-	env := vm.NewEVM(vm.Context{BlockNumber: big.NewInt(1)}, &dummyStatedb{}, params.TestChainConfig, &vm.Config{Debug: true, Tracer: tracer})
+	env := NewEVM(Context{BlockNumber: big.NewInt(1)}, &dummyStatedb{}, params.TestChainConfig, &Config{Debug: true, Tracer: tracer})
 
-	contract := vm.NewContract(account{}, account{}, big.NewInt(0), 10000)
-	contract.Code = []byte{byte(vm.PUSH1), 0x1, byte(vm.PUSH1), 0x1, 0x0}
+	contract := NewContract(account{}, account{}, big.NewInt(0), 10000)
+	contract.Code = []byte{byte(PUSH1), 0x1, byte(PUSH1), 0x1, 0x0}
 
 	_, err := env.Interpreter().Run(contract, []byte{})
 	if err != nil {
@@ -137,8 +136,8 @@ func TestHaltBetweenSteps(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	env := vm.NewEVM(vm.Context{BlockNumber: big.NewInt(1)}, &dummyStatedb{}, params.TestChainConfig, &vm.Config{Debug: true, Tracer: tracer})
-	contract := vm.NewContract(&account{}, &account{}, big.NewInt(0), 0)
+	env := NewEVM(Context{BlockNumber: big.NewInt(1)}, &dummyStatedb{}, params.TestChainConfig, &Config{Debug: true, Tracer: tracer})
+	contract := NewContract(&account{}, &account{}, big.NewInt(0), 0)
 
 	tracer.CaptureState(env, 0, 0, 0, 0, nil, nil, contract, 0, nil)
 	timeout := errors.New("stahp")

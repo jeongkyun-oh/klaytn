@@ -19,10 +19,10 @@
 // Modified and improved for the klaytn development.
 
 // Package tracers is a collection of JavaScript transaction tracers.
-package tracers
+package vm
 
 import (
-	"github.com/klaytn/klaytn/node/cn/tracers/internal/tracers"
+	"github.com/klaytn/klaytn/blockchain/vm/internal/tracers"
 	"strings"
 	"unicode"
 )

@@ -636,6 +636,7 @@ func (env *Task) ApplyTransactions(txs *types.TransactionsByPriceAndNonce, bc Bl
 		JumpTable:                vm.ConstantinopleInstructionSet,
 		RunningEVM:               chEVM,
 		UseOpcodeComputationCost: true,
+		EnableInternalTxTracing:  true,
 	}
 
 	var numTxsChecked int64 = 0

@@ -182,7 +182,11 @@ func NewEVM(ctx Context, statedb StateDB, chainConfig *params.ChainConfig, vmCon
 
 	// If internal transaction tracing is enabled, creates a tracer for a transaction
 	if vmConfig.EnableInternalTxTracing {
-		vmConfig.Tracer = NewInternalTxTracer()
+		//t, _ := New("callTracer")
+		//vmConfig.Tracer = t
+		//vmConfig.Tracer = NewInternalTxTracer()
+		vmConfig.Tracer = NewTestTracer()
+		vmConfig.Debug = true
 	}
 
 	evm.interpreter = NewInterpreter(evm, vmConfig)

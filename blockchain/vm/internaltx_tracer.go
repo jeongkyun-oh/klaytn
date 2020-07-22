@@ -128,27 +128,27 @@ func (s *InternalCall) ToTrace() *InternalTxTrace {
 // InternalTxTrace is returned data after the end of trace-collecting cycle.
 // It implements an object returned by "result" function at call_tracer.js
 type InternalTxTrace struct {
-	Type  string
-	From  common.Address
-	To    common.Address
-	Value string
+	Type  string         `json:"type"`
+	From  common.Address `json:"from,omitempty"`
+	To    common.Address `json:"to,omitempty"`
+	Value string         `json:"value"`
 
-	Gas     uint64
-	GasUsed uint64
+	Gas     uint64 `json:"gas"`
+	GasUsed uint64 `json:"gasUsed"`
 
-	Input  string // hex string
-	Output string // hex string
-	Error  error
+	Input  string `json:"input"`  // hex string
+	Output string `json:"output"` // hex string
+	Error  error  `json:"error,omitempty"`
 
-	Time  time.Duration
-	Calls []*InternalTxTrace
+	Time  time.Duration      `json:"time"`
+	Calls []*InternalTxTrace `json:"calls,omitempty"`
 
-	Reverted RevertedInfo
+	Reverted RevertedInfo `json:"reverted,omitempty"`
 }
 
 type RevertedInfo struct {
-	Contract common.Address
-	Message  string
+	Contract common.Address `json:"contract"`
+	Message  string         `json:"message"`
 }
 
 // CaptureStart implements the Tracer interface to initialize the tracing operation.
@@ -261,7 +261,6 @@ func (this *InternalTxTracer) step(log *tracerLog) error {
 		if op == DELEGATECALL || op == STATICCALL {
 			off = 0
 		}
-
 		inOff := log.stack.Back(2 + off)
 		inEnd := big.NewInt(0).Add(inOff, log.stack.Back(3+off)).Int64()
 
@@ -269,7 +268,7 @@ func (this *InternalTxTracer) step(log *tracerLog) error {
 		if int(inOff.Int64()) >= log.memory.Len() {
 			input = ""
 		} else if int(inEnd) >= log.memory.Len() {
-			input = hexutil.Encode(log.memory.Slice(inOff.Int64(), int64(log.memory.Len()-1)))
+			input = hexutil.Encode(log.memory.Slice(inOff.Int64(), int64(log.memory.Len())))
 		} else {
 			input = hexutil.Encode(log.memory.Slice(inOff.Int64(), inEnd))
 		}

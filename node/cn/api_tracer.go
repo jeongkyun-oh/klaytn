@@ -41,7 +41,6 @@ import (
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/common/hexutil"
 	"github.com/klaytn/klaytn/networks/rpc"
-	"github.com/klaytn/klaytn/node/cn/tracers"
 	"github.com/klaytn/klaytn/ser/rlp"
 	statedb2 "github.com/klaytn/klaytn/storage/statedb"
 )
@@ -743,7 +742,7 @@ func (api *PrivateDebugAPI) TraceTransaction(ctx context.Context, hash common.Ha
 func (api *PrivateDebugAPI) traceTx(ctx context.Context, message blockchain.Message, vmctx vm.Context, statedb *state.StateDB, config *TraceConfig) (interface{}, error) {
 	// Assemble the structured logger or the JavaScript tracer
 	var (
-		tracer vm.Tracer
+		tracer vm.TracerIface
 		err    error
 	)
 	switch {
@@ -756,14 +755,14 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message blockchain.Mess
 			}
 		}
 		// Constuct the JavaScript tracer to execute with
-		if tracer, err = tracers.New(*config.Tracer); err != nil {
+		if tracer, err = vm.New(*config.Tracer); err != nil {
 			return nil, err
 		}
 		// Handle timeouts and RPC cancellations
 		deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
 		go func() {
 			<-deadlineCtx.Done()
-			tracer.(*tracers.Tracer).Stop(errors.New("execution timeout"))
+			tracer.(*vm.Tracer).Stop(errors.New("execution timeout"))
 		}()
 		defer cancel()
 
@@ -790,7 +789,7 @@ func (api *PrivateDebugAPI) traceTx(ctx context.Context, message blockchain.Mess
 			StructLogs:  klaytnapi.FormatLogs(tracer.StructLogs()),
 		}, nil
 
-	case *tracers.Tracer:
+	case *vm.Tracer:
 		return tracer.GetResult()
 	case *vm.InternalTxTracer:
 		return tracer.GetResult()

@@ -2130,6 +2130,28 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 	if vmConfig.EnableInternalTxTracing {
 		// TODO-InternalTxTracer
 		// Need to store traces to the database or send them to the designated channel
+		switch tracer := vmConfig.Tracer.(type) {
+		case *vm.Tracer:
+			result, err := tracer.GetResult()
+			if err != nil {
+				logger.Crit("callTracer returns an error", "err", err)
+			}
+
+			logger.Info("result", "r", string(result))
+		case *vm.InternalTxTracer:
+			result, err := tracer.GetResult()
+			if err != nil {
+				logger.Crit("InternalTxTracer returns an error", "err", err)
+			}
+
+			logger.Info("result", "r", result)
+		case *vm.TestTracer:
+			err := tracer.CompareResults()
+			if err != nil {
+				logger.Crit("InternalTxTracer and CallTracer are not the same", "err", err)
+			}
+		}
+
 	}
 	// Update the state with pending changes
 	statedb.Finalise(true, false)
