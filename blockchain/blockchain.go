@@ -1609,7 +1609,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		start := time.Now()
 
 		// Process block using the parent state as reference point.
-		receipts, logs, usedGas, internalTxTraces, err := bc.processor.Process(block, stateDB, bc.vmConfig)
+		receipts, logs, usedGas, _, err := bc.processor.Process(block, stateDB, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
@@ -1619,6 +1619,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 			elapsed := time.Since(start)
 			logger.Debug("blockchain.blockchain processing block", "elapsed", elapsed, "txs", block.Transactions().Len())
+			blockProcessingTimeGauge.Update(elapsed.Nanoseconds())
 		}
 
 		// Validate the state using the default validator
@@ -1646,10 +1647,10 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 			coalescedLogs = append(coalescedLogs, logs...)
 			events = append(events, ChainEvent{
-				Block:            block,
-				Hash:             block.Hash(),
-				Logs:             logs,
-				InternalTxTraces: internalTxTraces,
+				Block: block,
+				Hash:  block.Hash(),
+				Logs:  logs,
+				//InternalTxTraces: internalTxTraces,
 			})
 			lastCanon = block
 
@@ -2158,7 +2159,7 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 	return receipt, gas, internalTrace, err
 }
 
-func GetInternalTxTrace(tracer vm.Tracer) (*vm.InternalTxTrace, error) {
+func GetInternalTxTrace(tracer vm.TracerIface) (*vm.InternalTxTrace, error) {
 	var (
 		internalTxTrace *vm.InternalTxTrace
 		err             error
@@ -2167,6 +2168,12 @@ func GetInternalTxTrace(tracer vm.Tracer) (*vm.InternalTxTrace, error) {
 	case *vm.InternalTxTracer:
 		internalTxTrace, err = tracer.GetResult()
 		if err != nil {
+			return nil, err
+		}
+	case *vm.Tracer:
+		_, err := tracer.GetResult()
+		if err != nil {
+			logger.Error("tracer.GetResult() returns an error", "err", err)
 			return nil, err
 		}
 	default:

@@ -18,7 +18,7 @@
 // This file is derived from eth/tracers/tracers_test.go (2018/06/04).
 // Modified and improved for the klaytn development.
 
-package tracers
+package vm
 
 import (
 	"crypto/ecdsa"
@@ -26,7 +26,6 @@ import (
 	"encoding/json"
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/types"
-	"github.com/klaytn/klaytn/blockchain/vm"
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/common/hexutil"
 	"github.com/klaytn/klaytn/common/math"
@@ -152,7 +151,7 @@ func TestPrestateTracerCreate2(t *testing.T) {
 	    result: 0x60f3f640a8508fC6a86d45DF051962668E1e8AC7
 	*/
 	origin, _ := signer.Sender(tx)
-	context := vm.Context{
+	context := Context{
 		CanTransfer: blockchain.CanTransfer,
 		Transfer:    blockchain.Transfer,
 		Origin:      origin,
@@ -182,7 +181,7 @@ func TestPrestateTracerCreate2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create call tracer: %v", err)
 	}
-	evm := vm.NewEVM(context, statedb, params.MainnetChainConfig, &vm.Config{Debug: true, Tracer: tracer})
+	evm := NewEVM(context, statedb, params.MainnetChainConfig, &Config{Debug: true, Tracer: tracer})
 
 	msg, err := tx.AsMessageWithAccountKeyPicker(signer, statedb, context.BlockNumber.Uint64())
 	if err != nil {
@@ -206,7 +205,7 @@ func TestPrestateTracerCreate2(t *testing.T) {
 	}
 }
 
-func covertToCallTrace(t *testing.T, internalTx *vm.InternalTxTrace) *callTrace {
+func covertToCallTrace(t *testing.T, internalTx *InternalTxTrace) *callTrace {
 	// coverts nested InternalTxTraces
 	var nestedCalls []callTrace
 	for _, call := range internalTx.Calls {
@@ -326,7 +325,7 @@ func TestCallTracer(t *testing.T) {
 
 			origin, _ := signer.Sender(tx)
 
-			context := vm.Context{
+			context := Context{
 				CanTransfer: blockchain.CanTransfer,
 				Transfer:    blockchain.Transfer,
 				Origin:      origin,
@@ -343,7 +342,7 @@ func TestCallTracer(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create call tracer: %v", err)
 			}
-			evm := vm.NewEVM(context, statedb, test.Genesis.Config, &vm.Config{Debug: true, Tracer: tracer})
+			evm := NewEVM(context, statedb, test.Genesis.Config, &Config{Debug: true, Tracer: tracer})
 
 			msg, err := tx.AsMessageWithAccountKeyPicker(signer, statedb, context.BlockNumber.Uint64())
 			if err != nil {
@@ -427,7 +426,7 @@ func TestInternalCallTracer(t *testing.T) {
 
 			origin, _ := signer.Sender(tx)
 
-			context := vm.Context{
+			context := Context{
 				CanTransfer: blockchain.CanTransfer,
 				Transfer:    blockchain.Transfer,
 				Origin:      origin,
@@ -440,8 +439,8 @@ func TestInternalCallTracer(t *testing.T) {
 			statedb := tests.MakePreState(database.NewMemoryDBManager(), test.Genesis.Alloc)
 
 			// Create the tracer, the EVM environment and run it
-			tracer := vm.NewInternalTxTracer()
-			evm := vm.NewEVM(context, statedb, test.Genesis.Config, &vm.Config{Debug: true, Tracer: tracer})
+			tracer := NewInternalTxTracer()
+			evm := NewEVM(context, statedb, test.Genesis.Config, &Config{Debug: true, Tracer: tracer})
 
 			msg, err := tx.AsMessageWithAccountKeyPicker(signer, statedb, context.BlockNumber.Uint64())
 			if err != nil {
