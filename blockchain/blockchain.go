@@ -1619,6 +1619,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 
 			elapsed := time.Since(start)
 			logger.Debug("blockchain.blockchain processing block", "elapsed", elapsed, "txs", block.Transactions().Len())
+			blockProcessingTimeGauge.Update(elapsed.Nanoseconds())
 		}
 
 		// Validate the state using the default validator

@@ -40,4 +40,6 @@ var (
 
 	txPoolPendingGauge = metrics.NewRegisteredGauge("tx/pool/pending/gauge", nil)
 	txPoolQueueGauge   = metrics.NewRegisteredGauge("tx/pool/queue/gauge", nil)
+
+	blockProcessingTimeGauge = metrics.NewRegisteredGauge("blockchain/block/processing/gauge", nil)
 )
