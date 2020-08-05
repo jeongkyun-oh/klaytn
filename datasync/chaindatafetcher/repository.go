@@ -22,4 +22,7 @@ type repository interface {
 	InsertTransactions(event blockchain.ChainEvent) error
 	InsertTokenTransfers(event blockchain.ChainEvent) error
 	InsertTraceResults(event blockchain.ChainEvent) error
+	InsertContracts(event blockchain.ChainEvent) error
+
+	SetComponent(component interface{})
 }
