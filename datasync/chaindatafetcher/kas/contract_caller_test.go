@@ -52,6 +52,8 @@ func (s *SuiteContractCaller) SetupTest() {
 	s.ctrl = gomock.NewController(s.T())
 	s.api = mocks.NewMockBlockchainAPI(s.ctrl)
 	s.caller = newContractCaller(s.api)
+
+	//s.caller = newContractCaller2()
 }
 
 func (s *SuiteContractCaller) TearDownTest() {
