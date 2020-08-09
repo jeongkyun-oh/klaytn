@@ -26,12 +26,8 @@ import (
 	"github.com/klaytn/klaytn/contracts/kip13"
 	"github.com/klaytn/klaytn/networks/rpc"
 	"math/big"
-	"strings"
 	"time"
 )
-
-// TODO-ChainDataFetcher extract the call timeout c as a configuration
-const callTimeout = 300 * time.Millisecond
 
 var (
 	// KIP 13: Interface Query Standard - https://kips.klaytn.com/KIPs/kip-13
@@ -83,20 +79,6 @@ func (f *contractCaller) CallContract(ctx context.Context, call klaytn.CallMsg, 
 func getCallOpts(blockNumber *big.Int, timeout time.Duration) (*bind.CallOpts, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	return &bind.CallOpts{Context: ctx, BlockNumber: blockNumber}, cancel
-}
-
-// the `SupportsInterface` method error must be handled with the following cases.
-// case 1: the contract implements fallback function
-// - the call can be reverted within fallback function: returns "evm: execution reverted"
-// - the call can be done successfully, but it outputs empty: returns "abi: unmarshalling empty output"
-// case 2: the contract does not implements fallback function
-// - the call can be reverted: returns "evm: execution reverted"
-// handleSupportsInterfaceErr handles the given error according to the above explanation.
-func handleSupportsInterfaceErr(err error) error {
-	if err != nil && (strings.Contains(err.Error(), errMsgEmptyOutput) || strings.Contains(err.Error(), errMsgEvmReverted)) {
-		return nil
-	}
-	return err
 }
 
 // supportsInterface returns true if the given interfaceID is supported, otherwise returns false.

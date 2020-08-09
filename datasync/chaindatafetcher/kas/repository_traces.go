@@ -50,6 +50,9 @@ func getEntryTx(block *types.Block, txIdx int, tx *types.Transaction) *Tx {
 
 // transformToInternalTx converts the result of call tracer into the internal transaction list according to the KAS database scheme.
 func transformToInternalTx(trace *vm.InternalTxTrace, offset *int64, entryTx *Tx, isFirstCall bool) ([]*Tx, error) {
+	if trace == nil {
+		logger.Error("trace is nil")
+	}
 	if trace.Type == "" {
 		return nil, noOpcodeError
 	} else if trace.Type == "SELFDESTRUCT" {

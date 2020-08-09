@@ -20,6 +20,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
 	"github.com/klaytn/klaytn/api"
+	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/log"
 	"time"
 )
@@ -49,6 +50,7 @@ type repository struct {
 
 	contractCaller *contractCaller
 	blockchainApi  BlockchainAPI
+	blockchain     *blockchain.BlockChain
 }
 
 func getEndpoint(user, password, host, port, name string) string {
@@ -83,5 +85,7 @@ func (r *repository) SetComponent(component interface{}) {
 	switch c := component.(type) {
 	case *api.PublicBlockChainAPI:
 		r.blockchainApi = c
+	case *blockchain.BlockChain:
+		r.blockchain = c
 	}
 }

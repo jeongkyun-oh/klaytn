@@ -25,13 +25,13 @@ import (
 )
 
 // filterKIPContracts filters the deployed contracts to KIP7, KIP17 and others.
-func filterKIPContracts(api BlockchainAPI, event blockchain.ChainEvent) ([]*FT, []*NFT, []*Contract, error) {
+func filterKIPContracts(api BlockchainAPI, blockchain *blockchain.BlockChain, event blockchain.ChainEvent) ([]*FT, []*NFT, []*Contract, error) {
 	var (
 		kip7s  []*FT
 		kip17s []*NFT
 		others []*Contract
 	)
-	caller := newContractCaller(api)
+	caller := newContractCaller2(blockchain)
 	for _, receipt := range event.Receipts {
 		if receipt.ContractAddress == (common.Address{}) {
 			continue
@@ -66,7 +66,7 @@ func filterKIPContracts(api BlockchainAPI, event blockchain.ChainEvent) ([]*FT, 
 
 // InsertContracts inserts deployed contracts in the given chain event into KAS database.
 func (r *repository) InsertContracts(event blockchain.ChainEvent) error {
-	kip7s, kip17s, others, err := filterKIPContracts(r.blockchainApi, event)
+	kip7s, kip17s, others, err := filterKIPContracts(r.blockchainApi, r.blockchain, event)
 	if err != nil {
 		logger.Error("Failed to filter KIP contracts", "err", err, "blockNumber", event.Block.NumberU64())
 		return err

@@ -128,15 +128,27 @@ func (f *ChainDataFetcher) handleRequest() {
 			logger.Info("handleRequest is stopped")
 			return
 		case req := <-f.reqCh:
-			res := &response{
-				reqType:     requestTypeTransaction,
-				blockNumber: req.event.Block.Number(),
-				err:         nil,
+			//res := &response{
+			//	reqType:     requestTypeTransaction,
+			//	blockNumber: req.event.Block.Number(),
+			//	err:         nil,
+			//}
+
+			if err := f.repo.InsertTransactions(req.event); err != nil {
+				logger.CritWithStack("insert transaction is failed", "event", req.event)
 			}
 
-			res.err = f.repo.InsertTransactions(req.event)
-			// TODO-ChainDataFetcher insert other types of data
-			f.resCh <- res
+			if err := f.repo.InsertContracts(req.event); err != nil {
+				logger.CritWithStack("insert contracts is failed", "event", req.event)
+			}
+
+			if err := f.repo.InsertTokenTransfers(req.event); err != nil {
+				logger.CritWithStack("insert token transfer is failed", "event", req.event)
+			}
+
+			if err := f.repo.InsertTraceResults(req.event); err != nil {
+				logger.CritWithStack("insert trace results is failed", "event", req.event)
+			}
 		}
 	}
 }
