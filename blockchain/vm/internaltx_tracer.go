@@ -27,11 +27,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/klaytn/klaytn/common"
-	"github.com/klaytn/klaytn/common/hexutil"
 	"math/big"
 	"strconv"
 	"time"
+
+	"github.com/klaytn/klaytn/common"
+	"github.com/klaytn/klaytn/common/hexutil"
 )
 
 var errEvmExecutionReverted = errors.New("evm: execution reverted")
@@ -228,7 +229,7 @@ func (this *InternalTxTracer) step(log *tracerLog) error {
 			Type:    op.String(),
 			From:    log.contract.Address(),
 			Input:   hexutil.Encode(log.memory.Slice(inOff.Int64(), inEnd)),
-			Gas:     log.gas,
+			GasIn:   log.gas,
 			GasCost: log.cost,
 			Value:   "0x" + log.stack.Peek().Text(16), // '0x' + tracerLog.stack.peek(0).toString(16)
 		}
@@ -328,8 +329,8 @@ func (this *InternalTxTracer) step(log *tracerLog) error {
 
 			ret := log.stack.Peek()
 			if ret.Cmp(big.NewInt(0)) != 0 {
-				call.To = common.HexToAddress(ret.String())
-				call.Output = hexutil.Encode(log.env.StateDB.GetCode(common.HexToAddress(ret.String())))
+				call.To = common.HexToAddress(ret.Text(16))
+				call.Output = hexutil.Encode(log.env.StateDB.GetCode(call.To))
 			} else if call.Error == nil {
 				call.Error = errInternalFailure // TODO(karalabe): surface these faults somehow
 			}
