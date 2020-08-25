@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/klaytn/klaytn/common"
@@ -55,6 +56,9 @@ type InternalTxTracer struct {
 	ctx              map[string]interface{} // Transaction context gathered throughout execution
 	initialized      bool
 	revertString     string
+
+	interrupt uint32 // Atomic flag to signal execution interruption
+	reason    error  // Textual reason for the interruption
 }
 
 // NewInternalTxTracer returns a new InternalTxTracer.
@@ -111,8 +115,8 @@ func (s *InternalCall) ToTrace() *InternalTxTrace {
 
 	return &InternalTxTrace{
 		Type:  s.Type,
-		From:  s.From,
-		To:    s.To,
+		From:  &s.From,
+		To:    &s.To,
 		Value: s.Value,
 
 		Gas:     s.Gas,
@@ -129,10 +133,10 @@ func (s *InternalCall) ToTrace() *InternalTxTrace {
 // InternalTxTrace is returned data after the end of trace-collecting cycle.
 // It implements an object returned by "result" function at call_tracer.js
 type InternalTxTrace struct {
-	Type  string         `json:"type"`
-	From  common.Address `json:"from,omitempty"`
-	To    common.Address `json:"to,omitempty"`
-	Value string         `json:"value"`
+	Type  string          `json:"type"`
+	From  *common.Address `json:"from,omitempty"`
+	To    *common.Address `json:"to,omitempty"`
+	Value string          `json:"value"`
 
 	Gas     uint64 `json:"gas"`
 	GasUsed uint64 `json:"gasUsed"`
@@ -144,12 +148,12 @@ type InternalTxTrace struct {
 	Time  time.Duration      `json:"time"`
 	Calls []*InternalTxTrace `json:"calls,omitempty"`
 
-	Reverted RevertedInfo `json:"reverted,omitempty"`
+	Reverted *RevertedInfo `json:"reverted,omitempty"`
 }
 
 type RevertedInfo struct {
-	Contract common.Address `json:"contract"`
-	Message  string         `json:"message"`
+	Contract *common.Address `json:"contract"`
+	Message  string          `json:"message"`
 }
 
 // CaptureStart implements the Tracer interface to initialize the tracing operation.
@@ -186,6 +190,12 @@ func wrapError(context string, err error) error {
 	return fmt.Errorf("%v    in server-side tracer function '%v'", err.Error(), context)
 }
 
+// Stop terminates execution of the tracer at the first opportune moment.
+func (this *InternalTxTracer) Stop(err error) {
+	this.reason = err
+	atomic.StoreUint32(&this.interrupt, 1)
+}
+
 // CaptureState implements the Tracer interface to trace a single step of VM execution.
 func (this *InternalTxTracer) CaptureState(env *EVM, pc uint64, op OpCode, gas, cost uint64, memory *Memory, logStack *Stack, contract *Contract, depth int, err error) error {
 	if this.err == nil {
@@ -194,8 +204,11 @@ func (this *InternalTxTracer) CaptureState(env *EVM, pc uint64, op OpCode, gas, 
 			this.ctx["block"] = env.BlockNumber.Uint64()
 			this.initialized = true
 		}
-		// As this tracer is executed inside the node and there is no reason to stop this
-		// while the node is running, let's skip stop logic from tracers.Tracer
+		// If tracing was interrupted, set the error and stop
+		if atomic.LoadUint32(&this.interrupt) > 0 {
+			this.err = this.reason
+			return nil
+		}
 
 		log := &tracerLog{
 			env, pc, op, gas, cost,
@@ -265,21 +278,12 @@ func (this *InternalTxTracer) step(log *tracerLog) error {
 		inOff := log.stack.Back(2 + off)
 		inEnd := big.NewInt(0).Add(inOff, log.stack.Back(3+off)).Int64()
 
-		input := ""
-		if int(inOff.Int64()) >= log.memory.Len() {
-			input = ""
-		} else if int(inEnd) >= log.memory.Len() {
-			input = hexutil.Encode(log.memory.Slice(inOff.Int64(), int64(log.memory.Len())))
-		} else {
-			input = hexutil.Encode(log.memory.Slice(inOff.Int64(), inEnd))
-		}
-
 		// Assemble the internal call report and store for completion
 		call := &InternalCall{
 			Type:    op.String(),
 			From:    log.contract.Address(),
 			To:      toAddr,
-			Input:   input,
+			Input:   hexutil.Encode(log.memory.Slice(inOff.Int64(), inEnd)),
 			GasIn:   log.gas,
 			GasCost: log.cost,
 			OutOff:  big.NewInt(log.stack.Back(4 + off).Int64()),
@@ -431,10 +435,10 @@ func (this *InternalTxTracer) result() (*InternalTxTrace, error) {
 		this.ctx["type"] = ""
 	}
 	if _, exist := this.ctx["from"]; !exist {
-		this.ctx["from"] = common.Address{}
+		this.ctx["from"] = nil
 	}
 	if _, exist := this.ctx["to"]; !exist {
-		this.ctx["to"] = common.Address{}
+		this.ctx["to"] = nil
 	}
 	if _, exist := this.ctx["value"]; !exist {
 		this.ctx["value"] = big.NewInt(0)
@@ -457,10 +461,18 @@ func (this *InternalTxTracer) result() (*InternalTxTrace, error) {
 	if this.callStackLength() == 0 {
 		this.callStack = []*InternalCall{{}}
 	}
+	var from, to *common.Address
+	if addr, ok := this.ctx["from"].(common.Address); ok {
+		from = &addr
+	}
+	if addr, ok := this.ctx["to"].(common.Address); ok {
+		to = &addr
+	}
+
 	result := &InternalTxTrace{
 		Type:    this.ctx["type"].(string),
-		From:    this.ctx["from"].(common.Address),
-		To:      this.ctx["to"].(common.Address),
+		From:    from,
+		To:      to,
 		Value:   "0x" + this.ctx["value"].(*big.Int).Text(16),
 		Gas:     this.ctx["gas"].(uint64),
 		GasUsed: this.ctx["gasUsed"].(uint64),
@@ -510,7 +522,9 @@ func (this *InternalTxTracer) result() (*InternalTxTrace, error) {
 			}
 			this.revertString = string(asciiInBytes)
 		}
-		result.Reverted = RevertedInfo{Contract: this.revertedContract, Message: this.revertString}
+		contract := this.revertedContract
+		message := this.revertString
+		result.Reverted = &RevertedInfo{Contract: &contract, Message: message}
 	}
 	return result, nil
 }

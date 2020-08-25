@@ -35,6 +35,7 @@ var CommonNodeFlags = []cli.Flag{
 	utils.DataDirFlag,
 	utils.KeyStoreDirFlag,
 	utils.TxPoolNoLocalsFlag,
+	utils.TxPoolAllowLocalAnchorTxFlag,
 	utils.TxPoolJournalFlag,
 	utils.TxPoolJournalIntervalFlag,
 	utils.TxPoolPriceLimitFlag,
@@ -49,10 +50,15 @@ var CommonNodeFlags = []cli.Flag{
 	utils.GCModeFlag,
 	utils.LightKDFFlag,
 	utils.StateDBCachingFlag,
-	utils.NoPartitionedDBFlag,
-	utils.NumStateTriePartitionsFlag,
+	utils.SingleDBFlag,
+	utils.NumStateTrieShardsFlag,
 	utils.LevelDBCompressionTypeFlag,
 	utils.LevelDBNoBufferPoolFlag,
+	utils.DynamoDBTableNameFlag,
+	utils.DynamoDBRegionFlag,
+	utils.DynamoDBIsProvisionedFlag,
+	utils.DynamoDBReadCapacityFlag,
+	utils.DynamoDBWriteCapacityFlag,
 	utils.LevelDBCacheSizeFlag,
 	utils.NoParallelDBWriteFlag,
 	utils.SenderTxHashIndexingFlag,
@@ -136,6 +142,17 @@ var KENFlags = []cli.Flag{
 	utils.ChildChainIndexingFlag,
 	utils.MainBridgeFlag,
 	utils.MainBridgeListenPortFlag,
+	// ChainDataFetcher
+	utils.EnableChainDataFetcherFlag,
+	utils.ChainDataFetcherNoDefault,
+	utils.ChainDataFetcherNumHandlers,
+	utils.ChainDataFetcherJobChannelSize,
+	utils.ChainDataFetcherChainEventSizeFlag,
+	utils.ChainDataFetcherDBHostFlag,
+	utils.ChainDataFetcherDBPortFlag,
+	utils.ChainDataFetcherDBNameFlag,
+	utils.ChainDataFetcherDBUserFlag,
+	utils.ChainDataFetcherDBPasswordFlag,
 	// DBSyncer
 	utils.EnableDBSyncerFlag,
 	utils.DBHostFlag,
@@ -173,6 +190,14 @@ var KSCNFlags = []cli.Flag{
 	utils.VTRecoveryIntervalFlag,
 	utils.ServiceChainNewAccountFlag,
 	utils.ServiceChainAnchoringFlag,
+	// KAS
+	utils.KASServiceChainAnchorFlag,
+	utils.KASServiceChainAnchorPeriodFlag,
+	utils.KASServiceChainAnchorUrlFlag,
+	utils.KASServiceChainAnchorOperatorFlag,
+	utils.KASServiceChainSecretKeyFlag,
+	utils.KASServiceChainAccessKeyFlag,
+	utils.KASServiceChainXChainIdFlag,
 }
 
 var KSPNFlags = []cli.Flag{
@@ -192,6 +217,14 @@ var KSPNFlags = []cli.Flag{
 	utils.VTRecoveryIntervalFlag,
 	utils.ServiceChainNewAccountFlag,
 	utils.ServiceChainAnchoringFlag,
+	// KAS
+	utils.KASServiceChainAnchorFlag,
+	utils.KASServiceChainAnchorPeriodFlag,
+	utils.KASServiceChainAnchorUrlFlag,
+	utils.KASServiceChainAnchorOperatorFlag,
+	utils.KASServiceChainSecretKeyFlag,
+	utils.KASServiceChainAccessKeyFlag,
+	utils.KASServiceChainXChainIdFlag,
 }
 
 var KSENFlags = []cli.Flag{
@@ -207,6 +240,14 @@ var KSENFlags = []cli.Flag{
 	utils.VTRecoveryFlag,
 	utils.VTRecoveryIntervalFlag,
 	utils.ServiceChainAnchoringFlag,
+	// KAS
+	utils.KASServiceChainAnchorFlag,
+	utils.KASServiceChainAnchorPeriodFlag,
+	utils.KASServiceChainAnchorUrlFlag,
+	utils.KASServiceChainAnchorOperatorFlag,
+	utils.KASServiceChainSecretKeyFlag,
+	utils.KASServiceChainAccessKeyFlag,
+	utils.KASServiceChainXChainIdFlag,
 	// DBSyncer
 	utils.EnableDBSyncerFlag,
 	utils.DBHostFlag,

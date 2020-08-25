@@ -23,6 +23,11 @@ package cn
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"os/exec"
+	"runtime"
+	"sync"
+
 	"github.com/klaytn/klaytn"
 	"github.com/klaytn/klaytn/accounts"
 	"github.com/klaytn/klaytn/api"
@@ -49,10 +54,6 @@ import (
 	"github.com/klaytn/klaytn/ser/rlp"
 	"github.com/klaytn/klaytn/storage/database"
 	"github.com/klaytn/klaytn/work"
-	"math/big"
-	"os/exec"
-	"runtime"
-	"sync"
 )
 
 var errCNLightSync = errors.New("can't run cn.CN in light sync mode")
@@ -406,9 +407,9 @@ func makeExtraData(extra []byte) []byte {
 
 // CreateDB creates the chain database.
 func CreateDB(ctx *node.ServiceContext, config *Config, name string) database.DBManager {
-	dbc := &database.DBConfig{Dir: name, DBType: database.LevelDB, ParallelDBWrite: config.ParallelDBWrite, Partitioned: config.PartitionedDB, NumStateTriePartitions: config.NumStateTriePartitions,
+	dbc := &database.DBConfig{Dir: name, DBType: config.DBType, ParallelDBWrite: config.ParallelDBWrite, SingleDB: config.SingleDB, NumStateTrieShards: config.NumStateTrieShards,
 		LevelDBCacheSize: config.LevelDBCacheSize, OpenFilesLimit: database.GetOpenFilesLimit(), LevelDBCompression: config.LevelDBCompression,
-		LevelDBBufferPool: config.LevelDBBufferPool}
+		LevelDBBufferPool: config.LevelDBBufferPool, DynamoDBConfig: &config.DynamoDBConfig}
 	return ctx.OpenDatabase(dbc)
 }
 

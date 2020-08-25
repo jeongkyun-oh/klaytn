@@ -21,6 +21,11 @@
 package work
 
 import (
+	"math/big"
+	"sync"
+	"sync/atomic"
+	"time"
+
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/state"
 	"github.com/klaytn/klaytn/blockchain/types"
@@ -31,10 +36,6 @@ import (
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/storage/database"
 	"github.com/rcrowley/go-metrics"
-	"math/big"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 const (
@@ -734,7 +735,7 @@ CommitTransactionLoop:
 func (env *Task) commitTransaction(tx *types.Transaction, bc BlockChain, rewardbase common.Address, vmConfig *vm.Config) (error, []*types.Log) {
 	snap := env.state.Snapshot()
 
-	receipt, _, err := bc.ApplyTransaction(env.config, &rewardbase, env.state, env.header, tx, &env.header.GasUsed, vmConfig)
+	receipt, _, _, err := bc.ApplyTransaction(env.config, &rewardbase, env.state, env.header, tx, &env.header.GasUsed, vmConfig)
 	if err != nil {
 		if err != vm.ErrInsufficientBalance && err != vm.ErrTotalTimeLimitReached {
 			tx.MarkUnexecutable(true)

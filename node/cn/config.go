@@ -21,6 +21,11 @@
 package cn
 
 import (
+	"math/big"
+	"os"
+	"os/user"
+	"time"
+
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/vm"
 	"github.com/klaytn/klaytn/common"
@@ -31,10 +36,6 @@ import (
 	"github.com/klaytn/klaytn/node/cn/gasprice"
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/storage/database"
-	"math/big"
-	"os"
-	"os/user"
-	"time"
 )
 
 var logger = log.NewModuleLogger(log.NodeCN)
@@ -93,21 +94,23 @@ type Config struct {
 	//LightPeers int `toml:",omitempty"` // Maximum number of LES client peers
 
 	// Database options
-	SkipBcVersionCheck     bool `toml:"-"`
-	PartitionedDB          bool
-	NumStateTriePartitions uint
-	LevelDBCompression     database.LevelDBCompressionType
-	LevelDBBufferPool      bool
-	LevelDBCacheSize       int
-	TrieCacheSize          int
-	TrieTimeout            time.Duration
-	TrieBlockInterval      uint
-	TriesInMemory          uint64
-	SenderTxHashIndexing   bool
-	ParallelDBWrite        bool
-	StateDBCaching         bool
-	TxPoolStateCache       bool
-	TrieCacheLimit         int
+	DBType               database.DBType
+	SkipBcVersionCheck   bool `toml:"-"`
+	SingleDB             bool
+	NumStateTrieShards   uint
+	LevelDBCompression   database.LevelDBCompressionType
+	LevelDBBufferPool    bool
+	LevelDBCacheSize     int
+	DynamoDBConfig       database.DynamoDBConfig
+	TrieCacheSize        int
+	TrieTimeout          time.Duration
+	TrieBlockInterval    uint
+	TriesInMemory        uint64
+	SenderTxHashIndexing bool
+	ParallelDBWrite      bool
+	StateDBCaching       bool
+	TxPoolStateCache     bool
+	TrieCacheLimit       int
 
 	// Mining-related options
 	ServiceChainSigner common.Address `toml:",omitempty"`

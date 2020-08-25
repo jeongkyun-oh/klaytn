@@ -24,7 +24,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"os"
+	"reflect"
+	"strings"
+	"unicode"
+
 	"github.com/klaytn/klaytn/cmd/utils"
+	"github.com/klaytn/klaytn/datasync/chaindatafetcher"
 	"github.com/klaytn/klaytn/datasync/dbsyncer"
 	"github.com/klaytn/klaytn/log"
 	"github.com/klaytn/klaytn/node"
@@ -32,13 +38,10 @@ import (
 	"github.com/klaytn/klaytn/node/sc"
 	"github.com/klaytn/klaytn/params"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"reflect"
-	"strings"
-	"unicode"
+
+	"io"
 
 	"github.com/naoina/toml"
-	"io"
 )
 
 var (
@@ -136,6 +139,58 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, klayConfig) {
 	return stack, cfg
 }
 
+func makeChainDataFetcherConfig(ctx *cli.Context) chaindatafetcher.ChainDataFetcherConfig {
+	cfg := chaindatafetcher.DefaultChainDataFetcherConfig
+
+	if ctx.GlobalBool(utils.EnableChainDataFetcherFlag.Name) {
+		cfg.EnabledChainDataFetcher = true
+
+		if ctx.GlobalIsSet(utils.ChainDataFetcherNoDefault.Name) {
+			cfg.NoDefaultStart = true
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherNumHandlers.Name) {
+			cfg.NumHandlers = ctx.GlobalInt(utils.ChainDataFetcherNumHandlers.Name)
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherJobChannelSize.Name) {
+			cfg.JobChannelSize = ctx.GlobalInt(utils.ChainDataFetcherJobChannelSize.Name)
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherChainEventSizeFlag.Name) {
+			cfg.BlockChannelSize = ctx.GlobalInt(utils.ChainDataFetcherChainEventSizeFlag.Name)
+		}
+
+		if ctx.GlobalIsSet(utils.ChainDataFetcherDBHostFlag.Name) {
+			dbhost := ctx.GlobalString(utils.ChainDataFetcherDBHostFlag.Name)
+			cfg.DBHost = dbhost
+		} else {
+			logger.Crit("DBHost must be set !", "key", utils.ChainDataFetcherDBHostFlag.Name)
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherDBPortFlag.Name) {
+			dbports := ctx.GlobalString(utils.ChainDataFetcherDBPortFlag.Name)
+			cfg.DBPort = dbports
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherDBUserFlag.Name) {
+			dbuser := ctx.GlobalString(utils.ChainDataFetcherDBUserFlag.Name)
+			cfg.DBUser = dbuser
+		} else {
+			logger.Crit("DBUser must be set !", "key", utils.ChainDataFetcherDBUserFlag.Name)
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherDBPasswordFlag.Name) {
+			dbpasswd := ctx.GlobalString(utils.ChainDataFetcherDBPasswordFlag.Name)
+			cfg.DBPassword = dbpasswd
+		} else {
+			logger.Crit("DBPassword must be set !", "key", utils.ChainDataFetcherDBPasswordFlag.Name)
+		}
+		if ctx.GlobalIsSet(utils.ChainDataFetcherDBNameFlag.Name) {
+			dbname := ctx.GlobalString(utils.ChainDataFetcherDBNameFlag.Name)
+			cfg.DBName = dbname
+		} else {
+			logger.Crit("DBName must be set !", "key", utils.ChainDataFetcherDBNameFlag.Name)
+		}
+	}
+
+	return *cfg
+}
+
 func makeDBSyncerConfig(ctx *cli.Context) dbsyncer.DBConfig {
 	cfg := dbsyncer.DefaultDBConfig
 
@@ -231,6 +286,39 @@ func makeServiceChainConfig(ctx *cli.Context) (config sc.SCConfig) {
 	cfg.VTRecoveryInterval = ctx.GlobalUint64(utils.VTRecoveryIntervalFlag.Name)
 	cfg.ServiceChainConsensus = utils.ServiceChainConsensusFlag.Value
 
+	cfg.KASAnchor = ctx.GlobalBool(utils.KASServiceChainAnchorFlag.Name)
+	if cfg.KASAnchor {
+		cfg.KASAnchorPeriod = ctx.GlobalUint64(utils.KASServiceChainAnchorPeriodFlag.Name)
+		if cfg.KASAnchorPeriod == 0 {
+			cfg.KASAnchorPeriod = 1
+			logger.Warn("KAS anchor period is set by 1")
+		}
+
+		cfg.KASAnchorUrl = ctx.GlobalString(utils.KASServiceChainAnchorUrlFlag.Name)
+		if cfg.KASAnchorUrl == "" {
+			logger.Crit("KAS anchor url should be set", "key", utils.KASServiceChainAnchorUrlFlag.Name)
+		}
+
+		cfg.KASAnchorOperator = ctx.GlobalString(utils.KASServiceChainAnchorOperatorFlag.Name)
+		if cfg.KASAnchorOperator == "" {
+			logger.Crit("KAS anchor operator should be set", "key", utils.KASServiceChainAnchorOperatorFlag.Name)
+		}
+
+		cfg.KASAccessKey = ctx.GlobalString(utils.KASServiceChainAccessKeyFlag.Name)
+		if cfg.KASAccessKey == "" {
+			logger.Crit("KAS access key should be set", "key", utils.KASServiceChainAccessKeyFlag.Name)
+		}
+
+		cfg.KASSecretKey = ctx.GlobalString(utils.KASServiceChainSecretKeyFlag.Name)
+		if cfg.KASSecretKey == "" {
+			logger.Crit("KAS secret key should be set", "key", utils.KASServiceChainSecretKeyFlag.Name)
+		}
+
+		cfg.KASXChainId = ctx.GlobalString(utils.KASServiceChainXChainIdFlag.Name)
+		if cfg.KASXChainId == "" {
+			logger.Crit("KAS x-chain-id should be set", "key", utils.KASServiceChainXChainIdFlag.Name)
+		}
+	}
 	return cfg
 }
 
@@ -261,6 +349,9 @@ func MakeFullNode(ctx *cli.Context) *node.Node {
 
 	dbfg := makeDBSyncerConfig(ctx)
 	utils.RegisterDBSyncerService(stack, &dbfg)
+
+	chaindataFetcherConfig := makeChainDataFetcherConfig(ctx)
+	utils.RegisterChainDataFetcherService(stack, &chaindataFetcherConfig)
 
 	return stack
 }

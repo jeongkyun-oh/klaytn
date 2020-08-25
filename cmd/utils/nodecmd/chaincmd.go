@@ -22,6 +22,9 @@ package nodecmd
 
 import (
 	"encoding/json"
+	"os"
+	"strings"
+
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/cmd/utils"
@@ -31,8 +34,6 @@ import (
 	"github.com/klaytn/klaytn/ser/rlp"
 	"github.com/klaytn/klaytn/storage/database"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"strings"
 )
 
 var logger = log.NewModuleLogger(log.CMDUtilsNodeCMD)
@@ -45,8 +46,13 @@ var (
 		ArgsUsage: "<genesisPath>",
 		Flags: []cli.Flag{
 			utils.DbTypeFlag,
-			utils.NoPartitionedDBFlag,
-			utils.NumStateTriePartitionsFlag,
+			utils.SingleDBFlag,
+			utils.NumStateTrieShardsFlag,
+			utils.DynamoDBTableNameFlag,
+			utils.DynamoDBRegionFlag,
+			utils.DynamoDBIsProvisionedFlag,
+			utils.DynamoDBReadCapacityFlag,
+			utils.DynamoDBWriteCapacityFlag,
 			utils.LevelDBCompressionTypeFlag,
 			utils.DataDirFlag,
 		},
@@ -130,11 +136,11 @@ func initGenesis(ctx *cli.Context) error {
 	stack := MakeFullNode(ctx)
 
 	parallelDBWrite := !ctx.GlobalIsSet(utils.NoParallelDBWriteFlag.Name)
-	partitioned := !ctx.GlobalIsSet(utils.NoPartitionedDBFlag.Name)
-	numStateTriePartitions := ctx.GlobalUint(utils.NumStateTriePartitionsFlag.Name)
+	singleDB := ctx.GlobalIsSet(utils.SingleDBFlag.Name)
+	numStateTrieShards := ctx.GlobalUint(utils.NumStateTrieShardsFlag.Name)
 	for _, name := range []string{"chaindata", "lightchaindata"} {
 		dbc := &database.DBConfig{Dir: name, DBType: database.LevelDB, ParallelDBWrite: parallelDBWrite,
-			Partitioned: partitioned, NumStateTriePartitions: numStateTriePartitions,
+			SingleDB: singleDB, NumStateTrieShards: numStateTrieShards,
 			LevelDBCacheSize: 0, OpenFilesLimit: 0}
 		chaindb := stack.OpenDatabase(dbc)
 		// Initialize DeriveSha implementation

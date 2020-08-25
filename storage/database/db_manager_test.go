@@ -18,32 +18,33 @@ package database
 
 import (
 	"crypto/ecdsa"
-	"github.com/klaytn/klaytn/blockchain/types"
-	"github.com/klaytn/klaytn/common"
-	"github.com/klaytn/klaytn/crypto"
-	"github.com/klaytn/klaytn/params"
-	"github.com/klaytn/klaytn/ser/rlp"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math/big"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/klaytn/klaytn/blockchain/types"
+	"github.com/klaytn/klaytn/common"
+	"github.com/klaytn/klaytn/crypto"
+	"github.com/klaytn/klaytn/params"
+	"github.com/klaytn/klaytn/ser/rlp"
+	"github.com/stretchr/testify/assert"
 )
 
 var dbManagers []DBManager
 var dbConfigs = make([]*DBConfig, 0, len(baseConfigs)*3)
 var baseConfigs = []*DBConfig{
-	{DBType: LevelDB, Partitioned: false, NumStateTriePartitions: 1, ParallelDBWrite: false},
-	{DBType: LevelDB, Partitioned: false, NumStateTriePartitions: 1, ParallelDBWrite: true},
-	{DBType: LevelDB, Partitioned: false, NumStateTriePartitions: 4, ParallelDBWrite: false},
-	{DBType: LevelDB, Partitioned: false, NumStateTriePartitions: 4, ParallelDBWrite: true},
+	{DBType: LevelDB, SingleDB: false, NumStateTrieShards: 1, ParallelDBWrite: false},
+	{DBType: LevelDB, SingleDB: false, NumStateTrieShards: 1, ParallelDBWrite: true},
+	{DBType: LevelDB, SingleDB: false, NumStateTrieShards: 4, ParallelDBWrite: false},
+	{DBType: LevelDB, SingleDB: false, NumStateTrieShards: 4, ParallelDBWrite: true},
 
-	{DBType: LevelDB, Partitioned: true, NumStateTriePartitions: 1, ParallelDBWrite: false},
-	{DBType: LevelDB, Partitioned: true, NumStateTriePartitions: 1, ParallelDBWrite: true},
-	{DBType: LevelDB, Partitioned: true, NumStateTriePartitions: 4, ParallelDBWrite: false},
-	{DBType: LevelDB, Partitioned: true, NumStateTriePartitions: 4, ParallelDBWrite: true},
+	{DBType: LevelDB, SingleDB: true, NumStateTrieShards: 1, ParallelDBWrite: false},
+	{DBType: LevelDB, SingleDB: true, NumStateTrieShards: 1, ParallelDBWrite: true},
+	{DBType: LevelDB, SingleDB: true, NumStateTrieShards: 4, ParallelDBWrite: false},
+	{DBType: LevelDB, SingleDB: true, NumStateTrieShards: 4, ParallelDBWrite: true},
 }
 
 var num1 = uint64(20190815)
@@ -389,7 +390,7 @@ func TestDBManager_TrieNode(t *testing.T) {
 		hasStateTrieNode, _ = dbm.HasStateTrieNode(hash1[:])
 		assert.True(t, hasStateTrieNode)
 
-		if !dbm.IsPartitioned() {
+		if dbm.IsSingle() {
 			continue
 		}
 		err := dbm.CreateMigrationDBAndSetStatus(123)
@@ -680,7 +681,7 @@ func TestDatabaseManager_CreateMigrationDBAndSetStatus(t *testing.T) {
 		}
 
 		// check if migration fails on single DB
-		if !dbm.IsPartitioned() {
+		if dbm.IsSingle() {
 			migrationBlockNum := uint64(12345)
 
 			// check if not in migration
@@ -688,7 +689,7 @@ func TestDatabaseManager_CreateMigrationDBAndSetStatus(t *testing.T) {
 
 			// check if create migration fails
 			err := dbm.CreateMigrationDBAndSetStatus(migrationBlockNum)
-			assert.Error(t, err, "error expected on non-partitioned DB") // expect error
+			assert.Error(t, err, "error expected on single DB") // expect error
 
 			continue
 		}
@@ -745,7 +746,7 @@ func TestDatabaseManager_CreateMigrationDBAndSetStatus(t *testing.T) {
 
 func TestDatabaseManager_FinishStateMigration(t *testing.T) {
 	for i, dbm := range dbManagers {
-		if !dbm.IsPartitioned() || dbConfigs[i].DBType == MemoryDB {
+		if dbm.IsSingle() || dbConfigs[i].DBType == MemoryDB {
 			continue
 		}
 
@@ -823,7 +824,7 @@ func TestDatabaseManager_FinishStateMigration(t *testing.T) {
 // While state trie migration, directory should be created with expected name
 func TestDBManager_StateMigrationDBPath(t *testing.T) {
 	for i, dbm := range dbManagers {
-		if !dbm.IsPartitioned() || dbConfigs[i].DBType == MemoryDB {
+		if dbm.IsSingle() || dbConfigs[i].DBType == MemoryDB {
 			continue
 		}
 

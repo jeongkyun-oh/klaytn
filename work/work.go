@@ -22,6 +22,11 @@ package work
 
 import (
 	"fmt"
+	"io"
+	"math/big"
+	"sync/atomic"
+	"time"
+
 	"github.com/klaytn/klaytn/accounts"
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/state"
@@ -35,10 +40,6 @@ import (
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/ser/rlp"
 	"github.com/klaytn/klaytn/storage/database"
-	"io"
-	"math/big"
-	"sync/atomic"
-	"time"
 )
 
 var logger = log.NewModuleLogger(log.Work)
@@ -287,7 +288,7 @@ type BlockChain interface {
 	WriteBlockWithState(block *types.Block, receipts []*types.Receipt, stateDB *state.StateDB) (blockchain.WriteStatus, error)
 	PostChainEvents(events []interface{}, logs []*types.Log)
 	TryGetCachedStateDB(rootHash common.Hash) (*state.StateDB, error)
-	ApplyTransaction(config *params.ChainConfig, author *common.Address, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg *vm.Config) (*types.Receipt, uint64, error)
+	ApplyTransaction(config *params.ChainConfig, author *common.Address, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, cfg *vm.Config) (*types.Receipt, uint64, *vm.InternalTxTrace, error)
 
 	// State Migration
 	PrepareStateMigration() error

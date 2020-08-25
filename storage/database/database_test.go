@@ -23,7 +23,6 @@ package database
 import (
 	"bytes"
 	"fmt"
-	"github.com/klaytn/klaytn/common"
 	"io/ioutil"
 	"math/big"
 	"os"
@@ -31,6 +30,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/klaytn/klaytn/common"
 )
 
 func newTestLDB() (*levelDB, func()) {
@@ -185,11 +186,11 @@ func TestShardDB(t *testing.T) {
 	}
 	seed, _ := strconv.ParseInt(hashstring, 16, 64)
 
-	partition := seed % int64(12)
+	shard := seed % int64(12)
 
 	idx := common.BytesToHash(key).Big().Mod(common.BytesToHash(key).Big(), big.NewInt(4))
 
-	fmt.Printf("idx %d   %d   %d", idx, partition, seed)
+	fmt.Printf("idx %d   %d   %d", idx, shard, seed)
 
 }
 

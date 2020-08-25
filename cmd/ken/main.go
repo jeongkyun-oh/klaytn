@@ -22,14 +22,15 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"sort"
+
 	"github.com/klaytn/klaytn/api/debug"
 	"github.com/klaytn/klaytn/cmd/utils"
 	"github.com/klaytn/klaytn/cmd/utils/nodecmd"
 	"github.com/klaytn/klaytn/console"
 	"github.com/klaytn/klaytn/log"
 	"gopkg.in/urfave/cli.v1"
-	"os"
-	"sort"
 )
 
 var (
@@ -79,6 +80,7 @@ var enHelpFlagGroups = []utils.FlagGroup{
 		Name: "TXPOOL",
 		Flags: []cli.Flag{
 			utils.TxPoolNoLocalsFlag,
+			utils.TxPoolAllowLocalAnchorTxFlag,
 			utils.TxPoolJournalFlag,
 			utils.TxPoolJournalIntervalFlag,
 			utils.TxPoolPriceLimitFlag,
@@ -98,10 +100,15 @@ var enHelpFlagGroups = []utils.FlagGroup{
 		Name: "DATABASE",
 		Flags: []cli.Flag{
 			utils.LevelDBCacheSizeFlag,
-			utils.NoPartitionedDBFlag,
-			utils.NumStateTriePartitionsFlag,
+			utils.SingleDBFlag,
+			utils.NumStateTrieShardsFlag,
 			utils.LevelDBCompressionTypeFlag,
 			utils.LevelDBNoBufferPoolFlag,
+			utils.DynamoDBTableNameFlag,
+			utils.DynamoDBRegionFlag,
+			utils.DynamoDBIsProvisionedFlag,
+			utils.DynamoDBReadCapacityFlag,
+			utils.DynamoDBWriteCapacityFlag,
 			utils.NoParallelDBWriteFlag,
 			utils.SenderTxHashIndexingFlag,
 		},

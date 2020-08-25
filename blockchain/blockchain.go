@@ -1064,6 +1064,9 @@ func (bc *BlockChain) writeReceipts(hash common.Hash, number uint64, receipts ty
 // If an archiving node is running, it always flushes state trie to DB.
 // If not, it flushes state trie to DB periodically. (period = bc.cacheConfig.BlockInterval)
 func (bc *BlockChain) writeStateTrie(block *types.Block, state *state.StateDB) error {
+	state.LockGCCachedNode()
+	defer state.UnlockGCCachedNode()
+
 	root, err := state.Commit(true)
 	if err != nil {
 		return err
@@ -1607,7 +1610,7 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		start := time.Now()
 
 		// Process block using the parent state as reference point.
-		receipts, logs, usedGas, err := bc.processor.Process(block, stateDB, bc.vmConfig)
+		receipts, logs, usedGas, internalTxTraces, err := bc.processor.Process(block, stateDB, bc.vmConfig)
 		if err != nil {
 			bc.reportBlock(block, receipts, err)
 			return i, events, coalescedLogs, err
@@ -1643,7 +1646,13 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 				"txs", len(block.Transactions()), "gas", block.GasUsed(), "elapsed", common.PrettyDuration(time.Since(bstart)))
 
 			coalescedLogs = append(coalescedLogs, logs...)
-			events = append(events, ChainEvent{block, block.Hash(), logs})
+			events = append(events, ChainEvent{
+				Block:            block,
+				Hash:             block.Hash(),
+				Logs:             logs,
+				Receipts:         receipts,
+				InternalTxTraces: internalTxTraces,
+			})
 			lastCanon = block
 
 		case SideStatTy:
@@ -2095,7 +2104,7 @@ func (bc *BlockChain) GetNonceInCache(addr common.Address) (uint64, bool) {
 // and uses the input parameters for its environment. It returns the receipt
 // for the transaction, gas used and an error if the transaction failed,
 // indicating the block was invalid.
-func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *common.Address, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, vmConfig *vm.Config) (*types.Receipt, uint64, error) {
+func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *common.Address, statedb *state.StateDB, header *types.Header, tx *types.Transaction, usedGas *uint64, vmConfig *vm.Config) (*types.Receipt, uint64, *vm.InternalTxTrace, error) {
 
 	// TODO-Klaytn We reject transactions with unexpected gasPrice and do not put the transaction into TxPool.
 	//         And we run transactions regardless of gasPrice if we push transactions in the TxPool.
@@ -2110,12 +2119,12 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 
 	// validation for each transaction before execution
 	if err := tx.Validate(statedb, blockNumber); err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 
 	msg, err := tx.AsMessageWithAccountKeyPicker(types.MakeSigner(chainConfig, header.Number), statedb, blockNumber)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 	// Create a new context to be used in the EVM environment
 	context := NewEVMContext(msg, header, bc, author)
@@ -2126,33 +2135,16 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 	_, gas, kerr := ApplyMessage(vmenv, msg)
 	err = kerr.ErrTxInvalid
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
+
+	var internalTrace *vm.InternalTxTrace
 	if vmConfig.EnableInternalTxTracing {
-		// TODO-InternalTxTracer
-		// Need to store traces to the database or send them to the designated channel
-		switch tracer := vmConfig.Tracer.(type) {
-		case *vm.Tracer:
-			result, err := tracer.GetResult()
-			if err != nil {
-				logger.Crit("callTracer returns an error", "err", err)
-			}
-
-			logger.Info("result", "r", string(result))
-		case *vm.InternalTxTracer:
-			result, err := tracer.GetResult()
-			if err != nil {
-				logger.Crit("InternalTxTracer returns an error", "err", err)
-			}
-
-			logger.Info("result", "r", result)
-		case *vm.TestTracer:
-			err := tracer.CompareResults()
-			if err != nil {
-				logger.Crit("InternalTxTracer and CallTracer are not the same", "err", err, "txhash", tx.Hash().String())
-			}
+		internalTrace, err = GetInternalTxTrace(vmConfig.Tracer)
+		if err != nil {
+			logger.Error("failed to get tracing result from a transaction", "txHash", tx.Hash().String(), "err", err)
+			return nil, 0, nil, err
 		}
-
 	}
 	// Update the state with pending changes
 	statedb.Finalise(true, false)
@@ -2165,7 +2157,30 @@ func (bc *BlockChain) ApplyTransaction(chainConfig *params.ChainConfig, author *
 	receipt.Logs = statedb.GetLogs(tx.Hash())
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
-	return receipt, gas, err
+	return receipt, gas, internalTrace, err
+}
+
+func GetInternalTxTrace(tracer vm.TracerIface) (*vm.InternalTxTrace, error) {
+	var (
+		internalTxTrace *vm.InternalTxTrace
+		err             error
+	)
+	switch tracer := tracer.(type) {
+	case *vm.InternalTxTracer:
+		internalTxTrace, err = tracer.GetResult()
+		if err != nil {
+			return nil, err
+		}
+	case *vm.TestTracer:
+		err := tracer.CompareResults()
+		if err != nil {
+			logger.Crit("InternalTxTracer and CallTracer are not the same", "err", err)
+		}
+	default:
+		logger.Error("To trace internal transactions, VM tracer type should be vm.InternalTxTracer", "actualType", reflect.TypeOf(tracer).String())
+		return nil, ErrInvalidTracer
+	}
+	return internalTxTrace, nil
 }
 
 // CheckBlockChainVersion checks the version of the current database and upgrade if possible.
