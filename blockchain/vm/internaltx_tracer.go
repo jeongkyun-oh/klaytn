@@ -334,7 +334,7 @@ func (this *InternalTxTracer) step(log *tracerLog) error {
 			ret := log.stack.Peek()
 			if ret.Cmp(big.NewInt(0)) != 0 {
 				call.To = common.HexToAddress(ret.Text(16))
-				call.Output = hexutil.Encode(log.env.StateDB.GetCode(call.To))
+				call.Output = hexutil.Encode(log.env.StateDB.GetCode(common.HexToAddress(ret.Text(16))))
 			} else if call.Error == nil {
 				call.Error = errInternalFailure // TODO(karalabe): surface these faults somehow
 			}

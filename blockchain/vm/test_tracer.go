@@ -26,11 +26,12 @@ package vm
 import (
 	"encoding/json"
 	"errors"
-	"github.com/klaytn/klaytn/common"
-	"github.com/klaytn/klaytn/common/hexutil"
 	"math/big"
 	"reflect"
 	"time"
+
+	"github.com/klaytn/klaytn/common"
+	"github.com/klaytn/klaytn/common/hexutil"
 )
 
 type TestTracer struct {
@@ -106,17 +107,17 @@ var valueTransferResult = json.RawMessage("{\"type\":0,\"from\":\"0x\",\"to\":\"
 
 // CallTrace is the result of a callTracer run.
 type CallTrace struct {
-	Type     string         `json:"type"`
-	From     common.Address `json:"from"`
-	To       common.Address `json:"to"`
-	Input    hexutil.Bytes  `json:"input"`
-	Output   hexutil.Bytes  `json:"output"`
-	Gas      hexutil.Uint64 `json:"gas,omitempty"`
-	GasUsed  hexutil.Uint64 `json:"gasUsed,omitempty"`
-	Value    hexutil.Uint64 `json:"value,omitempty"`
-	Error    string         `json:"error,omitempty"`
-	Calls    []CallTrace    `json:"calls,omitempty"`
-	Reverted Reverted       `json:"reverted,omitempty"`
+	Type     string          `json:"type"`
+	From     *common.Address `json:"from"`
+	To       *common.Address `json:"to"`
+	Input    hexutil.Bytes   `json:"input"`
+	Output   hexutil.Bytes   `json:"output"`
+	Gas      hexutil.Uint64  `json:"gas,omitempty"`
+	GasUsed  hexutil.Uint64  `json:"gasUsed,omitempty"`
+	Value    hexutil.Uint64  `json:"value,omitempty"`
+	Error    string          `json:"error,omitempty"`
+	Calls    []*CallTrace    `json:"calls,omitempty"`
+	Reverted *Reverted       `json:"reverted,omitempty"`
 }
 
 type Reverted struct {
@@ -126,13 +127,13 @@ type Reverted struct {
 
 func convertToCallTrace(internalTx *InternalTxTrace) (*CallTrace, error) {
 	// coverts nested InternalTxTraces
-	var nestedCalls []CallTrace
+	var nestedCalls []*CallTrace
 	for _, call := range internalTx.Calls {
 		nestedCall, err := convertToCallTrace(call)
 		if err != nil {
 			return nil, err
 		}
-		nestedCalls = append(nestedCalls, *nestedCall)
+		nestedCalls = append(nestedCalls, nestedCall)
 	}
 
 	// decodes input and output if they are not an empty string
@@ -173,21 +174,26 @@ func convertToCallTrace(internalTx *InternalTxTrace) (*CallTrace, error) {
 		errStr = internalTx.Error.Error()
 	}
 
-	ct := &CallTrace{
-		Type:    internalTx.Type,
-		From:    internalTx.From,
-		To:      internalTx.To,
-		Input:   decodedInput,
-		Output:  decodedOutput,
-		Gas:     hexutil.Uint64(internalTx.Gas),
-		GasUsed: hexutil.Uint64(internalTx.GasUsed),
-		Value:   val,
-		Error:   errStr,
-		Calls:   nestedCalls,
-		Reverted: Reverted{
-			Contract: internalTx.Reverted.Contract,
+	var reverted *Reverted
+	if internalTx.Reverted != nil {
+		reverted = &Reverted{
+			Contract: *internalTx.Reverted.Contract,
 			Message:  internalTx.Reverted.Message,
-		},
+		}
+	}
+
+	ct := &CallTrace{
+		Type:     internalTx.Type,
+		From:     internalTx.From,
+		To:       internalTx.To,
+		Input:    decodedInput,
+		Output:   decodedOutput,
+		Gas:      hexutil.Uint64(internalTx.Gas),
+		GasUsed:  hexutil.Uint64(internalTx.GasUsed),
+		Value:    val,
+		Error:    errStr,
+		Calls:    nestedCalls,
+		Reverted: reverted,
 	}
 
 	return ct, nil
