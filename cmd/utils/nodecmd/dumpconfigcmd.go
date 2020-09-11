@@ -29,8 +29,6 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kas"
-
 	"github.com/klaytn/klaytn/cmd/utils"
 	"github.com/klaytn/klaytn/datasync/chaindatafetcher"
 	"github.com/klaytn/klaytn/datasync/dbsyncer"
@@ -153,58 +151,58 @@ func makeChainDataFetcherConfig(ctx *cli.Context) chaindatafetcher.ChainDataFetc
 			cfg.BlockChannelSize = ctx.GlobalInt(utils.ChainDataFetcherChainEventSizeFlag.Name)
 		}
 
-		kasConfig := kas.DefaultKASConfig
-		if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBHostFlag.Name) {
-			dbhost := ctx.GlobalString(utils.ChainDataFetcherKASDBHostFlag.Name)
-			kasConfig.DBHost = dbhost
-		} else {
-			logger.Crit("DBHost must be set !", "key", utils.ChainDataFetcherKASDBHostFlag.Name)
-		}
-		if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBPortFlag.Name) {
-			dbport := ctx.GlobalString(utils.ChainDataFetcherKASDBPortFlag.Name)
-			kasConfig.DBPort = dbport
-		}
-		if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBUserFlag.Name) {
-			dbuser := ctx.GlobalString(utils.ChainDataFetcherKASDBUserFlag.Name)
-			kasConfig.DBUser = dbuser
-		} else {
-			logger.Crit("DBUser must be set !", "key", utils.ChainDataFetcherKASDBUserFlag.Name)
-		}
-		if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBPasswordFlag.Name) {
-			dbpasswd := ctx.GlobalString(utils.ChainDataFetcherKASDBPasswordFlag.Name)
-			kasConfig.DBPassword = dbpasswd
-		} else {
-			logger.Crit("DBPassword must be set !", "key", utils.ChainDataFetcherKASDBPasswordFlag.Name)
-		}
-		if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBNameFlag.Name) {
-			dbname := ctx.GlobalString(utils.ChainDataFetcherKASDBNameFlag.Name)
-			kasConfig.DBName = dbname
-		} else {
-			logger.Crit("DBName must be set !", "key", utils.ChainDataFetcherKASDBNameFlag.Name)
-		}
-
-		if ctx.GlobalBool(utils.ChainDataFetcherKASCacheUse.Name) {
-			kasConfig.CacheUse = true
-			if ctx.GlobalIsSet(utils.ChainDataFetcherKASCacheURLFlag.Name) {
-				cacheInvalidationUrl := ctx.GlobalString(utils.ChainDataFetcherKASCacheURLFlag.Name)
-				kasConfig.CacheInvalidationURL = cacheInvalidationUrl
-			} else {
-				logger.Crit("The cache invalidation url is not set")
-			}
-			if ctx.GlobalIsSet(utils.ChainDataFetcherKASBasicAuthParamFlag.Name) {
-				auth := ctx.GlobalString(utils.ChainDataFetcherKASBasicAuthParamFlag.Name)
-				kasConfig.BasicAuthParam = auth
-			} else {
-				logger.Crit("The authorization is not set")
-			}
-			if ctx.GlobalIsSet(utils.ChainDataFetcherKASXChainIdFlag.Name) {
-				xchainid := ctx.GlobalString(utils.ChainDataFetcherKASXChainIdFlag.Name)
-				kasConfig.XChainId = xchainid
-			} else {
-				logger.Crit("The x-chain-id is not set")
-			}
-		}
-		cfg.KasConfig = kasConfig
+		//kasConfig := kas.DefaultKASConfig
+		//if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBHostFlag.Name) {
+		//	dbhost := ctx.GlobalString(utils.ChainDataFetcherKASDBHostFlag.Name)
+		//	kasConfig.DBHost = dbhost
+		//} else {
+		//	logger.Crit("DBHost must be set !", "key", utils.ChainDataFetcherKASDBHostFlag.Name)
+		//}
+		//if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBPortFlag.Name) {
+		//	dbport := ctx.GlobalString(utils.ChainDataFetcherKASDBPortFlag.Name)
+		//	kasConfig.DBPort = dbport
+		//}
+		//if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBUserFlag.Name) {
+		//	dbuser := ctx.GlobalString(utils.ChainDataFetcherKASDBUserFlag.Name)
+		//	kasConfig.DBUser = dbuser
+		//} else {
+		//	logger.Crit("DBUser must be set !", "key", utils.ChainDataFetcherKASDBUserFlag.Name)
+		//}
+		//if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBPasswordFlag.Name) {
+		//	dbpasswd := ctx.GlobalString(utils.ChainDataFetcherKASDBPasswordFlag.Name)
+		//	kasConfig.DBPassword = dbpasswd
+		//} else {
+		//	logger.Crit("DBPassword must be set !", "key", utils.ChainDataFetcherKASDBPasswordFlag.Name)
+		//}
+		//if ctx.GlobalIsSet(utils.ChainDataFetcherKASDBNameFlag.Name) {
+		//	dbname := ctx.GlobalString(utils.ChainDataFetcherKASDBNameFlag.Name)
+		//	kasConfig.DBName = dbname
+		//} else {
+		//	logger.Crit("DBName must be set !", "key", utils.ChainDataFetcherKASDBNameFlag.Name)
+		//}
+		//
+		//if ctx.GlobalBool(utils.ChainDataFetcherKASCacheUse.Name) {
+		//	kasConfig.CacheUse = true
+		//	if ctx.GlobalIsSet(utils.ChainDataFetcherKASCacheURLFlag.Name) {
+		//		cacheInvalidationUrl := ctx.GlobalString(utils.ChainDataFetcherKASCacheURLFlag.Name)
+		//		kasConfig.CacheInvalidationURL = cacheInvalidationUrl
+		//	} else {
+		//		logger.Crit("The cache invalidation url is not set")
+		//	}
+		//	if ctx.GlobalIsSet(utils.ChainDataFetcherKASBasicAuthParamFlag.Name) {
+		//		auth := ctx.GlobalString(utils.ChainDataFetcherKASBasicAuthParamFlag.Name)
+		//		kasConfig.BasicAuthParam = auth
+		//	} else {
+		//		logger.Crit("The authorization is not set")
+		//	}
+		//	if ctx.GlobalIsSet(utils.ChainDataFetcherKASXChainIdFlag.Name) {
+		//		xchainid := ctx.GlobalString(utils.ChainDataFetcherKASXChainIdFlag.Name)
+		//		kasConfig.XChainId = xchainid
+		//	} else {
+		//		logger.Crit("The x-chain-id is not set")
+		//	}
+		//}
+		//cfg.KasConfig = kasConfig
 	}
 
 	return *cfg

@@ -23,13 +23,15 @@ import (
 	"sync"
 	"time"
 
+	common2 "github.com/klaytn/klaytn/datasync/chaindatafetcher/common"
+	event2 "github.com/klaytn/klaytn/datasync/chaindatafetcher/event"
+
 	"github.com/klaytn/klaytn/common"
 
 	"github.com/klaytn/klaytn/api"
 	"github.com/klaytn/klaytn/blockchain"
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/blockchain/vm"
-	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kas"
 	"github.com/klaytn/klaytn/event"
 	"github.com/klaytn/klaytn/log"
 	"github.com/klaytn/klaytn/networks/p2p"
@@ -69,7 +71,7 @@ type ChainDataFetcher struct {
 
 	wg sync.WaitGroup
 
-	repo Repository
+	repo common2.Repository
 
 	fetchingStarted      bool
 	fetchingStopCh       chan struct{}
@@ -80,11 +82,12 @@ type ChainDataFetcher struct {
 }
 
 func NewChainDataFetcher(ctx *node.ServiceContext, cfg *ChainDataFetcherConfig) (*ChainDataFetcher, error) {
-	repo, err := kas.NewRepository(cfg.KasConfig)
-	if err != nil {
-		logger.Error("Failed to create new Repository", "err", err, "user", cfg.KasConfig.DBUser, "host", cfg.KasConfig.DBHost, "port", cfg.KasConfig.DBPort, "name", cfg.KasConfig.DBName, "cacheUrl", cfg.KasConfig.CacheInvalidationURL, "x-chain-id", cfg.KasConfig.XChainId)
-		return nil, err
-	}
+	repo := event2.NewEventBroker()
+	//repo, err := kas.NewRepository(cfg.KasConfig)
+	//if err != nil {
+	//	logger.Error("Failed to create new Repository", "err", err, "user", cfg.KasConfig.DBUser, "host", cfg.KasConfig.DBHost, "port", cfg.KasConfig.DBPort, "name", cfg.KasConfig.DBName, "cacheUrl", cfg.KasConfig.CacheInvalidationURL, "x-chain-id", cfg.KasConfig.XChainId)
+	//	return nil, err
+	//}
 	checkpoint, err := repo.ReadCheckpoint()
 	if err != nil {
 		logger.Error("Failed to get checkpoint", "err", err)
@@ -283,27 +286,31 @@ func (f *ChainDataFetcher) SetComponents(components []interface{}) {
 }
 
 func (f *ChainDataFetcher) handleRequestByType(reqType requestType, shouldUpdateCheckpoint bool, ev blockchain.ChainEvent) {
-	now := time.Now()
-	// TODO-ChainDataFetcher parallelize handling data
-	if checkRequestType(reqType, requestTypeTransaction) {
-		f.updateGauge(f.retryFunc(f.repo.InsertTransactions, txsInsertionRetryGauge), txsInsertionTimeGauge)(ev)
+	err := f.repo.InsertTransactions(ev)
+	if err != nil {
+		logger.Crit("failed insert transactions", "err", err)
 	}
-	if checkRequestType(reqType, requestTypeTokenTransfer) {
-		f.updateGauge(f.retryFunc(f.repo.InsertTokenTransfers, tokenTransfersInsertionRetryGauge), tokenTransfersInsertionTimeGauge)(ev)
-	}
-	if checkRequestType(reqType, requestTypeContract) {
-		f.updateGauge(f.retryFunc(f.repo.InsertContracts, contractsInsertionRetryGauge), contractsInsertionTimeGauge)(ev)
-	}
-	if checkRequestType(reqType, requestTypeTrace) {
-		f.updateGauge(f.retryFunc(f.repo.InsertTraceResults, tracesInsertionRetryGauge), tracesInsertionTimeGauge)(ev)
-	}
-	elapsed := time.Since(now)
-	totalInsertionTimeGauge.Update(elapsed.Milliseconds())
-
-	if shouldUpdateCheckpoint {
-		f.updateCheckpoint(ev.Block.Number().Int64())
-	}
-	handledBlockNumberGauge.Update(ev.Block.Number().Int64())
+	//now := time.Now()
+	//// TODO-ChainDataFetcher parallelize handling data
+	//if checkRequestType(reqType, requestTypeTransaction) {
+	//	f.updateGauge(f.retryFunc(f.repo.InsertTransactions, txsInsertionRetryGauge), txsInsertionTimeGauge)(ev)
+	//}
+	//if checkRequestType(reqType, requestTypeTokenTransfer) {
+	//	f.updateGauge(f.retryFunc(f.repo.InsertTokenTransfers, tokenTransfersInsertionRetryGauge), tokenTransfersInsertionTimeGauge)(ev)
+	//}
+	//if checkRequestType(reqType, requestTypeContract) {
+	//	f.updateGauge(f.retryFunc(f.repo.InsertContracts, contractsInsertionRetryGauge), contractsInsertionTimeGauge)(ev)
+	//}
+	//if checkRequestType(reqType, requestTypeTrace) {
+	//	f.updateGauge(f.retryFunc(f.repo.InsertTraceResults, tracesInsertionRetryGauge), tracesInsertionTimeGauge)(ev)
+	//}
+	//elapsed := time.Since(now)
+	//totalInsertionTimeGauge.Update(elapsed.Milliseconds())
+	//
+	//if shouldUpdateCheckpoint {
+	//	f.updateCheckpoint(ev.Block.Number().Int64())
+	//}
+	//handledBlockNumberGauge.Update(ev.Block.Number().Int64())
 }
 
 func (f *ChainDataFetcher) handleRequest() {
@@ -374,7 +381,7 @@ func (f *ChainDataFetcher) retryFunc(insert func(blockchain.ChainEvent) error, g
 				i++
 				gauge.Update(int64(i))
 				logger.Warn("retrying...", "blockNumber", event.Block.NumberU64(), "retryCount", i)
-				time.Sleep(DBInsertRetryInterval)
+				time.Sleep(common2.DBInsertRetryInterval)
 			}
 		}
 	}
