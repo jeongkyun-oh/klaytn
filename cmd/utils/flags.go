@@ -30,8 +30,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/klaytn/klaytn/storage/statedb"
-
 	"github.com/klaytn/klaytn/accounts"
 	"github.com/klaytn/klaytn/accounts/keystore"
 	"github.com/klaytn/klaytn/api/debug"
@@ -39,6 +37,7 @@ import (
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/crypto"
 	"github.com/klaytn/klaytn/datasync/chaindatafetcher"
+	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kafka"
 	"github.com/klaytn/klaytn/datasync/dbsyncer"
 	"github.com/klaytn/klaytn/datasync/downloader"
 	"github.com/klaytn/klaytn/log"
@@ -52,6 +51,7 @@ import (
 	"github.com/klaytn/klaytn/node/sc"
 	"github.com/klaytn/klaytn/params"
 	"github.com/klaytn/klaytn/storage/database"
+	"github.com/klaytn/klaytn/storage/statedb"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -740,7 +740,30 @@ var (
 		Name:  "chaindatafetcher.kas.basic.auth.param",
 		Usage: "KAS specific header basic authorization parameter in chaindatafetcher",
 	}
-
+	ChainDataFetcherKafkaConsumerGroupIdFlag = cli.StringFlag{
+		Name:  "chaindatafetcher.kafka.consumer.group.id",
+		Usage: "Kafka consumer group id",
+		Value: kafka.DefaultGroupId,
+	}
+	ChainDataFetcherKafkaBrokersFlag = cli.StringSliceFlag{
+		Name:  "chaindatafetcher.kafka.brokers",
+		Usage: "Kafka broker URL list",
+	}
+	ChainDataFetcherKafkaReplicasFlag = cli.Int64Flag{
+		Name:  "chaindatafetcher.kafka.replicas",
+		Usage: "Kafka replicas",
+		Value: kafka.DefaultReplicas,
+	}
+	ChainDataFetcherKafkaPartitionsFlag = cli.Int64Flag{
+		Name:  "chaindatafetcher.kafka.partitions",
+		Usage: "Kafka broker partition number",
+		Value: kafka.DefaultPartitions,
+	}
+	ChainDataFetcherKafkaTopicPrefixFlag = cli.StringFlag{
+		Name:  "chaindatafetcher.kafka.topic",
+		Usage: "Kafka topic prefix",
+		Value: kafka.DefaultTopicPrefix,
+	}
 	// DBSyncer
 	EnableDBSyncerFlag = cli.BoolFlag{
 		Name:  "dbsyncer",
