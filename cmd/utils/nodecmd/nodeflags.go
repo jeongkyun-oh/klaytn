@@ -166,6 +166,9 @@ var KENFlags = []cli.Flag{
 	utils.ChainDataFetcherKASCacheURLFlag,
 	utils.ChainDataFetcherKASXChainIdFlag,
 	utils.ChainDataFetcherKASBasicAuthParamFlag,
+	utils.ChainDataFetcherKafkaReplicasFlag,
+	utils.ChainDataFetcherKafkaBrokersFlag,
+	utils.ChainDataFetcherKafkaPartitionsFlag,
 	// DBSyncer
 	utils.EnableDBSyncerFlag,
 	utils.DBHostFlag,

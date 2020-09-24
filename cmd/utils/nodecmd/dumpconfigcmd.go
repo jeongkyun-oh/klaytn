@@ -29,6 +29,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kafka"
+
 	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kas"
 
 	"github.com/klaytn/klaytn/cmd/utils"
@@ -160,8 +162,8 @@ func makeChainDataFetcherConfig(ctx *cli.Context) chaindatafetcher.ChainDataFetc
 			cfg.Mode = chaindatafetcher.ModeKAS
 			cfg.KasConfig = makeKASConfig(ctx)
 		case "kafka":
-			// TODO-ChainDataFetcher make kafka configuration
-			panic("implement me")
+			cfg.Mode = chaindatafetcher.ModeKafka
+			cfg.KafkaConfig = makeKafkaConfig(ctx)
 		default:
 			logger.Crit("unsupported chaindatafetcher mode (\"kas\", \"kafka\")", "mode", cfg.Mode)
 		}
@@ -215,6 +217,18 @@ func makeKASConfig(ctx *cli.Context) *kas.KASConfig {
 		kasConfig.XChainId = ctx.GlobalString(utils.ChainDataFetcherKASXChainIdFlag.Name)
 	}
 	return kasConfig
+}
+
+func makeKafkaConfig(ctx *cli.Context) *kafka.KafkaConfig {
+	kafkaConfig := kafka.GetDefaultKafkaConfig()
+	if ctx.GlobalIsSet(utils.ChainDataFetcherKafkaBrokersFlag.Name) {
+		kafkaConfig.Brokers = ctx.GlobalStringSlice(utils.ChainDataFetcherKafkaBrokersFlag.Name)
+	} else {
+		logger.Crit("The kafka brokers must be set")
+	}
+	kafkaConfig.Partitions = int32(ctx.GlobalInt64(utils.ChainDataFetcherKafkaPartitionsFlag.Name))
+	kafkaConfig.Replicas = int16(ctx.GlobalInt64(utils.ChainDataFetcherKafkaReplicasFlag.Name))
+	return kafkaConfig
 }
 
 func makeDBSyncerConfig(ctx *cli.Context) dbsyncer.DBConfig {
