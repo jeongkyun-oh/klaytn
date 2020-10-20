@@ -1275,9 +1275,7 @@ func SetNodeConfig(ctx *cli.Context, cfg *node.Config) {
 	setIPC(ctx, cfg)
 
 	// httptype is http or fasthttp
-	if ctx.GlobalIsSet(SrvTypeFlag.Name) {
-		cfg.HTTPServerType = ctx.GlobalString(SrvTypeFlag.Name)
-	}
+	cfg.HTTPServerType = ctx.GlobalString(SrvTypeFlag.Name)
 
 	setHTTP(ctx, cfg)
 	setWS(ctx, cfg)
