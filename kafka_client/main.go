@@ -6,8 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/big"
 	"reflect"
-	"strings"
 	"time"
 
 	"github.com/klaytn/klaytn/datasync/chaindatafetcher/kafka"
@@ -25,18 +25,17 @@ var kafkaBrokers = []string{
 }
 
 func isSameBlock(cli *rpc.Client, blockgroup map[string]interface{}) bool {
-	number := blockgroup["number"].(string)
+	numberRaw := int64(blockgroup["blockNumber"].(float64))
+	blockResult := blockgroup["result"].(map[string]interface{})
+
+	number := "0x" + big.NewInt(numberRaw).Text(16)
 	var result map[string]interface{}
 	err := cli.Call(&result, "klay_getBlockWithConsensusInfoByNumber", number)
 	if err != nil {
-		if strings.Contains(err.Error(), "block does not exist") {
-			log.Println("blocknumber: ", number)
-			return true
-		}
 		log.Fatal("get block is failed", "blockNumber", number, "err", err)
 	}
 
-	for key, val := range blockgroup {
+	for key, val := range blockResult {
 		if reflect.TypeOf(val) != reflect.TypeOf(result[key]) && val != result[key] {
 			log.Fatal("blocks are not same", "key", key, "val", val, "val2", result[key], reflect.TypeOf(val), reflect.TypeOf(result[key]))
 		}
