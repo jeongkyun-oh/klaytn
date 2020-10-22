@@ -264,6 +264,7 @@ func (c *Consumer) updateOffset(buffer [][]*Segment, lastMsg *sarama.ConsumerMes
 }
 
 func printBuffer(buffer [][]*Segment) {
+	fmt.Println("===================buffer===================")
 	for _, segments := range buffer {
 		key := ""
 		bufferStr := ""
@@ -271,9 +272,10 @@ func printBuffer(buffer [][]*Segment) {
 			key = segment.key
 			bufferStr += fmt.Sprintf("[%5v/%5v]", segment.index, segment.total)
 		}
-		fmt.Println(key)
+		bufferStr = fmt.Sprintf("%10v          ", key) + bufferStr
 		fmt.Println(bufferStr)
 	}
+	fmt.Println("===================end===================")
 }
 
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
