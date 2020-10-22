@@ -210,7 +210,7 @@ func main() {
 			fmt.Println("closed client")
 			return
 		} else {
-			log.Println(err)
+			log.Println("err", err)
 			time.Sleep(1 * time.Second)
 		}
 	}
