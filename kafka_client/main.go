@@ -207,7 +207,7 @@ func main() {
 	for {
 		err = consumer.Subscribe(context.Background())
 		if err == sarama.ErrClosedClient {
-			fmt.Println("closed client")
+			log.Println("closed client")
 			return
 		} else {
 			log.Println("err", err)
