@@ -125,7 +125,7 @@ func main() {
 
 	config := kafka.GetDefaultKafkaConfig()
 	config.Brokers = kafkaBrokers
-	config.TopicEnvironmentName = "segment-test"
+	config.TopicEnvironmentName = "segment-test-syncing"
 	config.TopicResourceName = *resourceName
 	config.SaramaConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
 
