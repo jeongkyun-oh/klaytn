@@ -138,61 +138,14 @@ func main() {
 	log.Println("created a new consumer")
 	log.Println("blockgroup topic", config.GetTopicName(kafka.EventBlockGroup))
 	log.Println("tracegroup topic", config.GetTopicName(kafka.EventTraceGroup))
-	//
-	//cli, err := rpc.Dial(enEndpoint)
-	//if err != nil {
-	//	panic(err)
-	//}
-	//var blockNumber uint64 = 0
-	//var blockNumberMutex sync.RWMutex
-	//err = consumer.AddTopicAndHandler(kafka.EventTraceGroup, func(message *sarama.ConsumerMessage) error {
-	//	blockNumberMutex.Lock()
-	//	defer blockNumberMutex.Unlock()
-	//	var result map[string]interface{}
-	//	json.Unmarshal(message.Value, &result)
-	//	number := uint64(result["blockNumber"].(float64))
-	//	for blockNumber < number {
-	//		var count string
-	//		err := cli.Call(&count, "klay_getBlockTransactionCountByNumber", "0x"+new(big.Int).SetUint64(blockNumber).Text(16))
-	//		if err != nil {
-	//			log.Println(err.Error())
-	//			time.Sleep(1 * time.Second)
-	//			continue
-	//		}
-	//
-	//		if count != "0x0" {
-	//			log.Fatal("there is some transactions", "count: ", count, "blockNumber", blockNumber)
-	//		}
-	//
-	//		log.Println(blockNumber, number)
-	//		blockNumber++
-	//	}
-	//
-	//	if blockNumber == number {
-	//		log.Println(blockNumber, number)
-	//		blockNumber++
-	//	}
-	//
-	//	return nil
-	//})
-	//if err != nil {
-	//	panic(err)
-	//}
-	//log.Println("added tracegroup handler")
 
-	cli, err := rpc.Dial(*enEndpoint)
-	if err != nil {
-		panic(err)
-	}
 	err = consumer.AddTopicAndHandler(kafka.EventBlockGroup, func(message *sarama.ConsumerMessage) error {
 		var result map[string]interface{}
 		err := json.Unmarshal(message.Value, &result)
 		if err != nil {
 			return err
 		}
-		if !isSameBlock(cli, result) {
-			return fmt.Errorf("the blocks are not same. blockNumber: %v", result["number"].(string))
-		}
+		log.Println(result["blockNumber"], "block")
 		return nil
 	})
 	if err != nil {
@@ -206,15 +159,50 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		if !isSameTrace(cli, result) {
-			return fmt.Errorf("the traces are not same. blockNumber: %v", result["number"].(string))
-		}
+		log.Println(result["blockNumber"], "trace")
 		return nil
 	})
 	if err != nil {
 		panic(err)
 	}
 	log.Println("added tracegroup handler")
+
+	// below-code is for consistency test
+	//cli, err := rpc.Dial(*enEndpoint)
+	//if err != nil {
+	//	panic(err)
+	//}
+	//err = consumer.AddTopicAndHandler(kafka.EventBlockGroup, func(message *sarama.ConsumerMessage) error {
+	//	var result map[string]interface{}
+	//	err := json.Unmarshal(message.Value, &result)
+	//	if err != nil {
+	//		return err
+	//	}
+	//	if !isSameBlock(cli, result) {
+	//		return fmt.Errorf("the blocks are not same. blockNumber: %v", result["number"].(string))
+	//	}
+	//	return nil
+	//})
+	//if err != nil {
+	//	panic(err)
+	//}
+	//log.Println("added blockgroup handler")
+	//
+	//err = consumer.AddTopicAndHandler(kafka.EventTraceGroup, func(message *sarama.ConsumerMessage) error {
+	//	var result map[string]interface{}
+	//	err := json.Unmarshal(message.Value, &result)
+	//	if err != nil {
+	//		panic(err)
+	//	}
+	//	if !isSameTrace(cli, result) {
+	//		return fmt.Errorf("the traces are not same. blockNumber: %v", result["number"].(string))
+	//	}
+	//	return nil
+	//})
+	//if err != nil {
+	//	panic(err)
+	//}
+	//log.Println("added tracegroup handler")
 
 	for {
 		err = consumer.Subscribe(context.Background())
