@@ -204,6 +204,18 @@ func main() {
 	//}
 	//log.Println("added tracegroup handler")
 
+	go func() {
+		ctx := context.Background()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case err := <-consumer.Error():
+				log.Println(err)
+			}
+		}
+	}()
+
 	for {
 		err = consumer.Subscribe(context.Background())
 		if err == sarama.ErrClosedClient {

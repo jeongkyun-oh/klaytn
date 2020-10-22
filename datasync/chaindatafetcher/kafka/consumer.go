@@ -123,6 +123,10 @@ func (c *Consumer) AddTopicAndHandler(event string, handler TopicHandler) error 
 	return nil
 }
 
+func (c *Consumer) Error() <-chan error {
+	return c.group.Errors()
+}
+
 // Subscribe subscribes the registered topics with the handlers until the consumer is closed.
 func (c *Consumer) Subscribe(ctx context.Context) error {
 	// TODO-ChainDataFetcher consider error handling if necessary
