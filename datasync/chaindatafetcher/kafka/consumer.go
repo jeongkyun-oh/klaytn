@@ -99,6 +99,8 @@ func NewConsumer(config *KafkaConfig, groupId string) (*Consumer, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Info("new consumer is created")
 	return &Consumer{
 		config:   config,
 		group:    group,
@@ -153,12 +155,14 @@ func (c *Consumer) Subscribe(ctx context.Context) error {
 
 // Setup is called at the beginning of a new session, before ConsumeClaim.
 func (c *Consumer) Setup(s sarama.ConsumerGroupSession) error {
+	logger.Info("Setup is called")
 	return nil
 }
 
 // Cleanup is called at the end of a session, once all ConsumeClaim goroutines have exited
 // but before the offsets are committed for the very last time.
 func (c *Consumer) Cleanup(s sarama.ConsumerGroupSession) error {
+	logger.Info("Cleanup is called")
 	return nil
 }
 
@@ -259,12 +263,26 @@ func (c *Consumer) updateOffset(buffer [][]*Segment, lastMsg *sarama.ConsumerMes
 	return nil
 }
 
+func printBuffer(buffer [][]*Segment) {
+	for _, segments := range buffer {
+		key := ""
+		bufferStr := ""
+		for _, segment := range segments {
+			key = segment.key
+			bufferStr += fmt.Sprintf("[%5v/%5v]", segment.index, segment.total)
+		}
+		fmt.Println(key)
+		fmt.Println(bufferStr)
+	}
+}
+
 // ConsumeClaim must start a consumer loop of ConsumerGroupClaim's Messages().
 // Once the Messages() channel is closed, the Handler must finish its processing
 // loop and exit.
 func (c *Consumer) ConsumeClaim(cgs sarama.ConsumerGroupSession, cgc sarama.ConsumerGroupClaim) error {
 	var buffer [][]*Segment
 	for msg := range cgc.Messages() {
+		printBuffer(buffer)
 		segment, err := newSegment(msg)
 		if err != nil {
 			return err
