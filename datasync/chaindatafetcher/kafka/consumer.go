@@ -263,8 +263,8 @@ func (c *Consumer) updateOffset(buffer [][]*Segment, lastMsg *sarama.ConsumerMes
 	return nil
 }
 
-func printBuffer(buffer [][]*Segment) {
-	fmt.Println("===================buffer===================")
+func printBuffer(msg *sarama.ConsumerMessage, buffer [][]*Segment) {
+	fmt.Printf("=buffer (offset: %v, partition: %v, topic: %v)=\n", msg.Offset, msg.Partition, msg.Topic)
 	for _, segments := range buffer {
 		key := ""
 		bufferStr := ""
@@ -284,7 +284,7 @@ func printBuffer(buffer [][]*Segment) {
 func (c *Consumer) ConsumeClaim(cgs sarama.ConsumerGroupSession, cgc sarama.ConsumerGroupClaim) error {
 	var buffer [][]*Segment
 	for msg := range cgc.Messages() {
-		printBuffer(buffer)
+		printBuffer(msg, buffer)
 		segment, err := newSegment(msg)
 		if err != nil {
 			return err
