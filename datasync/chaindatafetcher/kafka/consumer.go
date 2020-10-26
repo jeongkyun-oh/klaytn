@@ -284,7 +284,7 @@ func printBuffer(msg *sarama.ConsumerMessage, buffer [][]*Segment) {
 func (c *Consumer) ConsumeClaim(cgs sarama.ConsumerGroupSession, cgc sarama.ConsumerGroupClaim) error {
 	var buffer [][]*Segment
 	for msg := range cgc.Messages() {
-		printBuffer(msg, buffer)
+		//printBuffer(msg, buffer)
 		segment, err := newSegment(msg)
 		if err != nil {
 			return err
