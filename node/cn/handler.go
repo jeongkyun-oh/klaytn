@@ -619,7 +619,7 @@ func handleBlockHeadersRequestMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) erro
 	if err := msg.Decode(&query); err != nil {
 		return errResp(ErrDecode, "%v: %v", msg, err)
 	}
-	logger.Debug("received header requests from downloader", "query", query)
+	logger.Debug("received header requests from downloader", "query", query, "peer", p.GetID())
 	hashMode := query.Origin.Hash != (common.Hash{})
 
 	// Gather headers until the fetch or network limits is reached
@@ -690,16 +690,16 @@ func handleBlockHeadersRequestMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) erro
 			query.Origin.Number += query.Skip + 1
 		}
 	}
-	logger.Debug("sending headers", "headers", len(headers), "unknown", unknown, "bytes", bytes)
+	logger.Debug("sending headers", "headers", len(headers), "unknown", unknown, "bytes", bytes, "peer", p.GetID())
 	if len(headers) > 0 {
-		logger.Debug("first header", "first", headers[0])
-		logger.Debug("last header", "first", headers[len(headers)-1])
+		logger.Debug("first header", "first", headers[0].Hash().String(), "peer", p.GetID())
+		logger.Debug("last header", "first", headers[len(headers)-1].Hash().String(), "peer", p.GetID())
 	}
 	err := p.SendBlockHeaders(headers)
 	if err != nil {
-		logger.Debug("sending headers was successful")
+		logger.Debug("sending headers failed", "err", err, "peer", p.GetID())
 	} else {
-		logger.Debug("sending headers failed", "err", err)
+		logger.Debug("sending headers was successful", "peer", p.GetID())
 	}
 
 	return err
@@ -735,15 +735,17 @@ func handleBlockBodiesRequest(pm *ProtocolManager, p Peer, msg p2p.Msg, logging 
 	)
 	i := 0
 	for bytes < softResponseLimit && len(bodies) < downloader.MaxBlockFetch {
-		if logging && i == 0 {
-			logger.Debug("first hash", "hash", hash)
-		}
 		// Retrieve the hash of the next block
 		if err := msgStream.Decode(&hash); err == rlp.EOL {
 			break
 		} else if err != nil {
 			return nil, errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
+
+		if logging && i == 0 {
+			logger.Debug("first hash", "hash", hash, "peer", p.GetID())
+		}
+
 		// Retrieve the requested block body, stopping if enough was found
 		if data := pm.blockchain.GetBodyRLP(hash); len(data) != 0 {
 			bodies = append(bodies, data)
@@ -753,7 +755,7 @@ func handleBlockBodiesRequest(pm *ProtocolManager, p Peer, msg p2p.Msg, logging 
 	}
 
 	if logging {
-		logger.Debug("last hash", "hash", hash)
+		logger.Debug("last hash", "hash", hash, "peer", p.GetID())
 	}
 
 	return bodies, nil
@@ -761,16 +763,16 @@ func handleBlockBodiesRequest(pm *ProtocolManager, p Peer, msg p2p.Msg, logging 
 
 // handleBlockBodiesRequestMsg handles block body request message.
 func handleBlockBodiesRequestMsg(pm *ProtocolManager, p Peer, msg p2p.Msg) error {
-	logger.Debug("received block bodies request")
+	logger.Debug("received block bodies request", "peer", p.GetID())
 	if bodies, err := handleBlockBodiesRequest(pm, p, msg, true); err != nil {
-		logger.Debug("handleBlockBodiesRequest is failed", "err", err)
+		logger.Debug("handleBlockBodiesRequest is failed", "err", err, "peer", p.GetID())
 		return err
 	} else {
 		err2 := p.SendBlockBodiesRLP(bodies)
 		if err2 != nil {
-			logger.Error("SendBlockBodiesRLP is failed", "err", err2)
+			logger.Error("SendBlockBodiesRLP is failed", "err", err2, "peer", p.GetID())
 		} else {
-			logger.Debug("SendBlockBodiesRLP was successful")
+			logger.Debug("SendBlockBodiesRLP was successful", "peer", p.GetID())
 		}
 		return err2
 	}
