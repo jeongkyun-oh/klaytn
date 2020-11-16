@@ -24,12 +24,13 @@ import (
 	"fmt"
 
 	"errors"
+	"sync"
+	"time"
+
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
 	"github.com/rcrowley/go-metrics"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
-	"sync"
-	"time"
 )
 
 var (
@@ -656,6 +657,8 @@ func (q *queue) expire(timeout time.Duration, pendPool map[string]*fetchRequest,
 		if time.Since(request.Time) > timeout {
 			// Update the metrics with the timeout
 			timeoutMeter.Mark(1)
+
+			logger.Debug("expiring items...", "peer", id, "requestedTime", request.Time, "headers", len(request.Headers))
 
 			// Return any non satisfied requests to the pool
 			if request.From > 0 {

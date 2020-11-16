@@ -22,13 +22,14 @@ package fetcher
 
 import (
 	"errors"
+	"math/rand"
+	"time"
+
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/consensus"
 	"github.com/klaytn/klaytn/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
-	"math/rand"
-	"time"
 )
 
 const (
