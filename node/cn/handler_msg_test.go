@@ -18,6 +18,10 @@ package cn
 
 import (
 	"errors"
+	"math/big"
+	"sync/atomic"
+	"testing"
+
 	"github.com/golang/mock/gomock"
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
@@ -26,9 +30,6 @@ import (
 	"github.com/klaytn/klaytn/ser/rlp"
 	"github.com/klaytn/klaytn/work/mocks"
 	"github.com/stretchr/testify/assert"
-	"math/big"
-	"sync/atomic"
-	"testing"
 )
 
 var expectedErr = errors.New("some error")
@@ -119,7 +120,7 @@ func TestHandleBlockBodiesRequestMsg(t *testing.T) {
 		mockCtrl, _, mockPeer, pm := prepareBlockChain(t)
 		msg := generateMsg(t, BlockBodiesRequestMsg, uint64(123)) // Non-list value to invoke an error
 
-		bodies, err := handleBlockBodiesRequest(pm, mockPeer, msg)
+		bodies, err := handleBlockBodiesRequest(pm, mockPeer, msg, false)
 		assert.Nil(t, bodies)
 		assert.Error(t, err)
 		mockCtrl.Finish()
@@ -134,7 +135,7 @@ func TestHandleBlockBodiesRequestMsg(t *testing.T) {
 		mockBlockChain.EXPECT().GetBodyRLP(gomock.Eq(hashes[0])).Return(returnedData[0]).Times(1)
 		mockBlockChain.EXPECT().GetBodyRLP(gomock.Eq(hashes[1])).Return(returnedData[1]).Times(1)
 
-		bodies, err := handleBlockBodiesRequest(pm, mockPeer, msg)
+		bodies, err := handleBlockBodiesRequest(pm, mockPeer, msg, false)
 		assert.Equal(t, returnedData, bodies)
 		assert.NoError(t, err)
 		mockCtrl.Finish()
