@@ -755,7 +755,7 @@ func handleBlockBodiesRequest(pm *ProtocolManager, p Peer, msg p2p.Msg, logging 
 	}
 
 	if logging {
-		logger.Debug("last hash", "hash", hash, "peer", p.GetID())
+		logger.Debug("last hash", "hash", hash, "peer", p.GetID(), "size", len(bodies))
 	}
 
 	return bodies, nil
