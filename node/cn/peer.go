@@ -23,6 +23,10 @@ package cn
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"sync"
+	"time"
+
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/consensus"
@@ -31,9 +35,6 @@ import (
 	"github.com/klaytn/klaytn/networks/p2p"
 	"github.com/klaytn/klaytn/networks/p2p/discover"
 	"github.com/klaytn/klaytn/ser/rlp"
-	"math/big"
-	"sync"
-	"time"
 )
 
 var (
@@ -963,6 +964,12 @@ func (p *multiChannelPeer) ReadMsg(rw p2p.MsgReadWriter, connectionOrder int, er
 			p.GetP2PPeer().Log().Warn("ProtocolManager over max msg size", "err", err)
 			errCh <- err
 			return
+		}
+
+		switch msg.Code {
+		case BlockHeadersRequestMsg, BlockHeadersMsg, BlockBodiesRequestMsg, BlockBodiesMsg:
+			p.GetP2PPeer().Log().Debug("read message", "msg.Code", msg.Code)
+		default:
 		}
 
 		select {
