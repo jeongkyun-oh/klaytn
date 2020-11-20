@@ -1562,11 +1562,13 @@ func (d *Downloader) DeliverHeaders(id string, headers []*types.Header) (err err
 
 // DeliverBodies injects a new batch of block bodies received from a remote node.
 func (d *Downloader) DeliverBodies(id string, transactions [][]*types.Transaction) (err error) {
+	logger.Debug("Delivering bodies", "peer", id, "headers", len(transactions))
 	return d.deliver(id, d.bodyCh, &bodyPack{id, transactions}, bodyInMeter, bodyDropMeter)
 }
 
 // DeliverReceipts injects a new batch of receipts received from a remote node.
 func (d *Downloader) DeliverReceipts(id string, receipts [][]*types.Receipt) (err error) {
+	logger.Debug("Delivering receipts", "peer", id, "headers", len(receipts))
 	return d.deliver(id, d.receiptCh, &receiptPack{id, receipts}, receiptInMeter, receiptDropMeter)
 }
 
