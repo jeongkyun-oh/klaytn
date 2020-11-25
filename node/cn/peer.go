@@ -974,6 +974,11 @@ func (p *multiChannelPeer) ReadMsg(rw p2p.MsgReadWriter, connectionOrder int, er
 
 		select {
 		case msgCh <- msg:
+			switch msg.Code {
+			case BlockHeadersRequestMsg, BlockHeadersMsg, BlockBodiesRequestMsg, BlockBodiesMsg:
+				p.GetP2PPeer().Log().Debug("inserted message to msgCh", "msg.Code", msg.Code)
+			default:
+			}
 		case <-closed:
 			return
 		}
