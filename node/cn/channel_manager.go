@@ -18,11 +18,13 @@ package cn
 
 import (
 	"fmt"
+
 	"github.com/klaytn/klaytn/networks/p2p"
 )
 
 const (
 	BlockChannel uint = iota
+	DownloaderChannel
 	TxChannel
 	ConsensusChannel
 	MiscChannel
@@ -52,10 +54,10 @@ func NewChannelManager(channelSize int) *ChannelManager {
 	channelMgr.RegisterMsgCode(BlockChannel, BlockHeaderFetchResponseMsg)
 	channelMgr.RegisterMsgCode(BlockChannel, BlockBodiesFetchRequestMsg)
 	channelMgr.RegisterMsgCode(BlockChannel, BlockBodiesFetchResponseMsg)
-	channelMgr.RegisterMsgCode(BlockChannel, BlockHeadersRequestMsg)
-	channelMgr.RegisterMsgCode(BlockChannel, BlockHeadersMsg)
-	channelMgr.RegisterMsgCode(BlockChannel, BlockBodiesRequestMsg)
-	channelMgr.RegisterMsgCode(BlockChannel, BlockBodiesMsg)
+	channelMgr.RegisterMsgCode(DownloaderChannel, BlockHeadersRequestMsg)
+	channelMgr.RegisterMsgCode(DownloaderChannel, BlockHeadersMsg)
+	channelMgr.RegisterMsgCode(DownloaderChannel, BlockBodiesRequestMsg)
+	channelMgr.RegisterMsgCode(DownloaderChannel, BlockBodiesMsg)
 	channelMgr.RegisterMsgCode(BlockChannel, NewBlockMsg)
 
 	channelMgr.RegisterMsgCode(TxChannel, TxMsg)

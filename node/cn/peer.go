@@ -23,6 +23,10 @@ package cn
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"sync"
+	"time"
+
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/consensus"
@@ -31,9 +35,6 @@ import (
 	"github.com/klaytn/klaytn/networks/p2p"
 	"github.com/klaytn/klaytn/networks/p2p/discover"
 	"github.com/klaytn/klaytn/ser/rlp"
-	"math/big"
-	"sync"
-	"time"
 )
 
 var (
@@ -1026,7 +1027,7 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 
 	var wg sync.WaitGroup
 	// TODO-GX check global worker and peer worker
-	messageChannels := make([]chan p2p.Msg, 0, lenRWs)
+	messageChannels, downloaderChannels := make([]chan p2p.Msg, 0, lenRWs), make([]chan p2p.Msg, 0, lenRWs)
 	var consensusChannel chan p2p.Msg
 	isCN := false
 
@@ -1045,6 +1046,11 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 		p.chMgr.RegisterChannelWithIndex(idx, BlockChannel, channel)
 		p.chMgr.RegisterChannelWithIndex(idx, TxChannel, channel)
 		p.chMgr.RegisterChannelWithIndex(idx, MiscChannel, channel)
+
+		downloaderChannel := make(chan p2p.Msg, channelSizePerPeer)
+		defer close(downloaderChannel)
+		downloaderChannels = append(downloaderChannels, downloaderChannel)
+		p.chMgr.RegisterChannelWithIndex(idx, DownloaderChannel, downloaderChannel)
 
 		if isCN {
 			p.chMgr.RegisterChannelWithIndex(idx, ConsensusChannel, consensusChannel)
@@ -1065,6 +1071,12 @@ func (p *multiChannelPeer) Handle(pm *ProtocolManager) error {
 	for connIdx, messageChannel := range messageChannels {
 		for i := 0; i < ConcurrentOfChannel[connIdx]; i++ {
 			go pm.processMsg(messageChannel, p, addr, errChannel)
+		}
+	}
+
+	for connIdx, downloaderChannel := range downloaderChannels {
+		for i := 0; i < ConcurrentOfChannel[connIdx]; i++ {
+			go pm.processMsg(downloaderChannel, p, addr, errChannel)
 		}
 	}
 
