@@ -968,7 +968,7 @@ func (p *multiChannelPeer) ReadMsg(rw p2p.MsgReadWriter, connectionOrder int, er
 
 		switch msg.Code {
 		case BlockHeadersRequestMsg, BlockHeadersMsg, BlockBodiesRequestMsg, BlockBodiesMsg:
-			p.GetP2PPeer().Log().Debug("read message", "msg.Code", msg.Code)
+			p.GetP2PPeer().Log().Debug("read message", "msg.Code", msg.Code, "receivedAt", msg.ReceivedAt.Nanosecond())
 		default:
 		}
 
@@ -976,7 +976,7 @@ func (p *multiChannelPeer) ReadMsg(rw p2p.MsgReadWriter, connectionOrder int, er
 		case msgCh <- msg:
 			switch msg.Code {
 			case BlockHeadersRequestMsg, BlockHeadersMsg, BlockBodiesRequestMsg, BlockBodiesMsg:
-				p.GetP2PPeer().Log().Debug("inserted message to msgCh", "msg.Code", msg.Code)
+				p.GetP2PPeer().Log().Debug("inserted message to msgCh", "msg.Code", msg.Code, "receivedAt", msg.ReceivedAt.Nanosecond())
 			default:
 			}
 		case <-closed:

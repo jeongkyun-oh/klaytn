@@ -466,10 +466,16 @@ func (pm *ProtocolManager) handle(p Peer) error {
 
 func (pm *ProtocolManager) processMsg(msgCh <-chan p2p.Msg, p Peer, addr common.Address, errCh chan<- error) {
 	for msg := range msgCh {
+		size := len(msgCh)
+		now := time.Now()
 		if err := pm.handleMsg(p, addr, msg); err != nil {
 			p.GetP2PPeer().Log().Error("ProtocolManager failed to handle message", "msg", msg, "err", err)
 			errCh <- err
 			return
+		}
+		elapsed := time.Since(now)
+		if elapsed > 500*time.Millisecond {
+			logger.Warn("the message took a long time", "elapsed", elapsed, "msg.Code", msg.Code, "msg.ReceivedAt", msg.ReceivedAt, "msgChSize", size)
 		}
 		msg.Discard()
 	}
