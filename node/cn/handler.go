@@ -474,7 +474,7 @@ func (pm *ProtocolManager) processMsg(msgCh <-chan p2p.Msg, p Peer, addr common.
 			return
 		}
 		elapsed := time.Since(now)
-		if elapsed > 500*time.Millisecond {
+		if elapsed > 100*time.Millisecond {
 			logger.Warn("the message took a long time", "elapsed", elapsed, "msg.Code", msg.Code, "msg.ReceivedAt", msg.ReceivedAt, "msgChSize", size)
 		}
 		msg.Discard()
