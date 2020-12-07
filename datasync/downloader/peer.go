@@ -174,12 +174,14 @@ func (p *peerConnection) FetchBodies(request *fetchRequest) error {
 	}
 	p.blockStarted = time.Now()
 
-	// Convert the header set to a retrievable slice
-	hashes := make([]common.Hash, 0, len(request.Headers))
-	for _, header := range request.Headers {
-		hashes = append(hashes, header.Hash())
-	}
-	go p.peer.RequestBodies(hashes)
+	go func() {
+		// Convert the header set to a retrievable slice
+		hashes := make([]common.Hash, 0, len(request.Headers))
+		for _, header := range request.Headers {
+			hashes = append(hashes, header.Hash())
+		}
+		p.peer.RequestBodies(hashes)
+	}()
 
 	return nil
 }
@@ -196,12 +198,14 @@ func (p *peerConnection) FetchReceipts(request *fetchRequest) error {
 	}
 	p.receiptStarted = time.Now()
 
-	// Convert the header set to a retrievable slice
-	hashes := make([]common.Hash, 0, len(request.Headers))
-	for _, header := range request.Headers {
-		hashes = append(hashes, header.Hash())
-	}
-	go p.peer.RequestReceipts(hashes)
+	go func() {
+		// Convert the header set to a retrievable slice
+		hashes := make([]common.Hash, 0, len(request.Headers))
+		for _, header := range request.Headers {
+			hashes = append(hashes, header.Hash())
+		}
+		p.peer.RequestReceipts(hashes)
+	}()
 
 	return nil
 }
