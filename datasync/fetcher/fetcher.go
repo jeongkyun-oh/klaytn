@@ -309,7 +309,6 @@ func (f *Fetcher) loop() {
 		}
 		// Import any queued blocks that could potentially fit
 		height := f.chainHeight()
-	insertFailed:
 		for !f.queue.Empty() {
 			op := f.queue.PopItem().(*inject)
 			if f.queueChangeHook != nil {
@@ -342,7 +341,7 @@ func (f *Fetcher) loop() {
 				if f.queueChangeHook != nil {
 					f.queueChangeHook(hash, true)
 				}
-				break insertFailed
+				break
 			}
 		}
 		// Wait for an outside event to occur
