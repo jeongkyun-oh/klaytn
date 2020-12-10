@@ -41,8 +41,8 @@ const (
 	hashLimit    = 256 * 20 // Maximum number of unique blocks a peer may have announced
 	blockLimit   = 64 * 20  // Maximum number of unique blocks a peer may have delivered
 
-	numInsertWorkers = 1   // No need to be large since it is naturally blocked by insertChain which holds a lock
-	numInsertTasks   = 100 // Should not block fetcher
+	numInsertWorkers = 1 // No need to be large since it is naturally blocked by insertChain which holds a lock
+	numInsertTasks   = 3 // Should not block fetcher
 )
 
 var (
