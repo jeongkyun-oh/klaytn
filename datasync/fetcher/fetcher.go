@@ -352,6 +352,7 @@ func (f *Fetcher) loop() {
 			return
 
 		case notification := <-f.notify:
+			logger.Info("hash notified", "time", notification.time.UnixNano(), "number", notification.number, "hash", notification.hash, "origin", notification.origin)
 			// A block was announced, make sure the peer isn't DOSing us
 			propAnnounceInMeter.Mark(1)
 
@@ -396,8 +397,12 @@ func (f *Fetcher) loop() {
 			f.forgetBlock(hash)
 
 		case <-fetchTimer.C:
+			type req struct {
+				hash   common.Hash
+				number uint64
+			}
 			// At least one block's timer ran out, check for needing retrieval
-			request := make(map[string][]common.Hash)
+			request := make(map[string][]req)
 
 			for hash, announces := range f.announced {
 				if time.Since(announces[0].time) > arriveTimeout-gatherSlack {
@@ -407,7 +412,10 @@ func (f *Fetcher) loop() {
 
 					// If the block still didn't arrive, queue for fetching
 					if f.getBlock(hash) == nil {
-						request[announce.origin] = append(request[announce.origin], hash)
+						request[announce.origin] = append(request[announce.origin], req{
+							hash:   hash,
+							number: announce.number,
+						})
 						f.fetching[hash] = announce
 					}
 				}
@@ -415,19 +423,20 @@ func (f *Fetcher) loop() {
 			// Send out all block header requests
 			for peer, hashes := range request {
 				logger.Trace("Fetching scheduled headers", "peer", peer, "len", len(hashes),
-					"firstHash", hashes[0].String(), "lastHash", hashes[len(hashes)-1].String())
+					"firstHash", hashes[0].hash.String(), "lastHash", hashes[len(hashes)-1].hash.String())
 
 				// Create a closure of the fetch and schedule in on a new thread
-				fetchHeader, hashes := f.fetching[hashes[0]].fetchHeader, hashes
-				go func() {
-					if f.fetchingHook != nil {
-						f.fetchingHook(hashes)
-					}
+				fetchHeader, hashes := f.fetching[hashes[0].hash].fetchHeader, hashes
+				go func(p string) {
+					//if f.fetchingHook != nil {
+					//	f.fetchingHook(hashes)
+					//}
 					for _, hash := range hashes {
 						headerFetchMeter.Mark(1)
-						fetchHeader(hash) // Suboptimal, but protocol doesn't allow batch header retrievals
+						fetchHeader(hash.hash) // Suboptimal, but protocol doesn't allow batch header retrievals
+						logger.Info("header request sent", "time", time.Now().UnixNano(), "number", hash.number, "hash", hash.hash, "peer", p)
 					}
-				}()
+				}(peer)
 			}
 			// Schedule the next fetch if blocks are still pending
 			f.rescheduleFetch(fetchTimer)
@@ -469,6 +478,10 @@ func (f *Fetcher) loop() {
 			var task *headerFilterTask
 			select {
 			case task = <-filter:
+				if len(task.headers) != 1 {
+					logger.Error("something is wrong, the headers is not length 1", "length", len(task.headers))
+				}
+				logger.Info("received header", "time", task.time.UnixNano(), "number", task.headers[0].Number.Uint64(), "hash", task.headers[0].Hash(), "peer", task.peer)
 			case <-f.quit:
 				return
 			}
@@ -579,6 +592,7 @@ func (f *Fetcher) loop() {
 							block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i])
 							block.ReceivedAt = task.time
 							blocks = append(blocks, block)
+							logger.Info("received body", "time", task.time.UnixNano(), "number", announce.header.Number.Uint64(), "hash", announce.header.Hash(), "peer", task.peer)
 						} else {
 							f.forgetHash(hash)
 						}
