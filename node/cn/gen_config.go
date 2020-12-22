@@ -25,6 +25,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		NetworkId               uint64
 		SyncMode                downloader.SyncMode
 		NoPruning               bool
+		WorkerDisable           bool
+		DownloaderDisable       bool
+		FetcherDisable          bool
 		ParentOperatorAddr      *common.Address `toml:",omitempty"`
 		AnchoringPeriod         uint64
 		SentChainTxsLimit       uint64
@@ -69,6 +72,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.NetworkId = c.NetworkId
 	enc.SyncMode = c.SyncMode
 	enc.NoPruning = c.NoPruning
+	enc.WorkerDisable = c.WorkerDisable
+	enc.DownloaderDisable = c.DownloaderDisable
+	enc.FetcherDisable = c.FetcherDisable
 	enc.ParentOperatorAddr = c.ParentOperatorAddr
 	enc.AnchoringPeriod = c.AnchoringPeriod
 	enc.SentChainTxsLimit = c.SentChainTxsLimit
@@ -117,6 +123,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		NetworkId               *uint64
 		SyncMode                *downloader.SyncMode
 		NoPruning               *bool
+		WorkerDisable           *bool
+		DownloaderDisable       *bool
+		FetcherDisable          *bool
 		ParentOperatorAddr      *common.Address `toml:",omitempty"`
 		AnchoringPeriod         *uint64
 		SentChainTxsLimit       *uint64
@@ -171,6 +180,15 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.NoPruning != nil {
 		c.NoPruning = *dec.NoPruning
+	}
+	if dec.WorkerDisable != nil {
+		c.WorkerDisable = *dec.WorkerDisable
+	}
+	if dec.DownloaderDisable != nil {
+		c.DownloaderDisable = *dec.DownloaderDisable
+	}
+	if dec.FetcherDisable != nil {
+		c.FetcherDisable = *dec.FetcherDisable
 	}
 	if dec.ParentOperatorAddr != nil {
 		c.ParentOperatorAddr = dec.ParentOperatorAddr
