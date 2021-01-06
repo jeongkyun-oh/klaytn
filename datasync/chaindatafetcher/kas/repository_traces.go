@@ -66,7 +66,7 @@ func transformToInternalTx(trace *vm.InternalTxTrace, offset *int64, entryTx *Tx
 	}
 
 	if trace.To == nil {
-		return nil, noToFieldError
+		trace.To = &common.Address{}
 	}
 
 	var txs []*Tx
