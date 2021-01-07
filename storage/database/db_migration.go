@@ -118,11 +118,11 @@ func (dbm *databaseManager) StartDBMigration(dstdbm DBManager) error {
 	if !dbm.config.SingleDB {
 		errChan := make(chan error, databaseEntryTypeSize)
 		for et := MiscDB; et < databaseEntryTypeSize; et++ {
-			srcDB := dbm.getDatabase(et)
+			srcDB := dbm.GetDatabase(et)
 
-			dstDB := dstdbm.getDatabase(MiscDB)
+			dstDB := dstdbm.GetDatabase(MiscDB)
 			if !dstdbm.GetDBConfig().SingleDB {
-				dstDB = dstdbm.getDatabase(et)
+				dstDB = dstdbm.GetDatabase(et)
 			}
 
 			if srcDB == nil {
@@ -157,8 +157,8 @@ func (dbm *databaseManager) StartDBMigration(dstdbm DBManager) error {
 	}
 
 	// single DB -> single DB
-	srcDB := dbm.getDatabase(0)
-	dstDB := dstdbm.getDatabase(0)
+	srcDB := dbm.GetDatabase(0)
+	dstDB := dstdbm.GetDatabase(0)
 
 	if err := copyDB("single", srcDB, dstDB, quit); err != nil {
 		return err

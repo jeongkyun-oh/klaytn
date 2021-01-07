@@ -167,6 +167,11 @@ const shardedDBSubChannelSize = 128   // Size of each sub-channel of resultChs
 
 // shardedDBIterator iterates all items of each shardDB.
 // This is useful when you want to get items in serial in binary-alphabetigcal order.
+// Compact is not supported on a shardedDB database.
+func (db *shardedDB) Compact(start []byte, limit []byte) error {
+	return nil
+}
+
 type shardedDBIterator struct {
 	parallelIterator shardedDBParallelIterator
 

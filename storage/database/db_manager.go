@@ -58,7 +58,7 @@ type DBManager interface {
 	setStateTrieMigrationStatus(uint64)
 	GetMemDB() *MemDB
 	GetDBConfig() *DBConfig
-	getDatabase(DBEntryType) Database
+	GetDatabase(DBEntryType) Database
 	CreateMigrationDBAndSetStatus(blockNum uint64) error
 	FinishStateMigration(succeed bool) chan struct{}
 	GetStateTrieDB() Database
@@ -229,6 +229,8 @@ type DBManager interface {
 	// ChainDataFetcher checkpoint function
 	WriteChainDataFetcherCheckpoint(checkpoint uint64) error
 	ReadChainDataFetcherCheckpoint() (uint64, error)
+
+	SnapshotManager
 }
 
 type DBEntryType uint8
@@ -242,6 +244,7 @@ const (
 	StateTrieMigrationDB
 	TxLookUpEntryDB
 	bridgeServiceDB
+	SnapshotDB
 	// databaseEntryTypeSize should be the last item in this list!!
 	databaseEntryTypeSize
 )
@@ -262,6 +265,7 @@ var dbBaseDirs = [databaseEntryTypeSize]string{
 	"statetrie_migrated", // "statetrie_migrated_#N" path will be used. (#N is a migrated block number.)
 	"txlookup",
 	"bridgeservice",
+	"snapshot",
 }
 
 // Sum of dbConfigRatio should be 100.
@@ -475,7 +479,7 @@ func NewDBManager(dbc *DBConfig) DBManager {
 			logger.Crit("Failed to create databases", "DBType", dbc.DBType, "err", err)
 		}
 		if migrationBlockNum := dbm.getStateTrieMigrationInfo(); migrationBlockNum > 0 {
-			mdb := dbm.getDatabase(StateTrieMigrationDB)
+			mdb := dbm.GetDatabase(StateTrieMigrationDB)
 			if mdb == nil {
 				logger.Error("Failed to load StateTrieMigrationDB database", "migrationBlockNumber", migrationBlockNum)
 			} else {
@@ -514,14 +518,14 @@ func (dbm *databaseManager) NewBatch(dbEntryType DBEntryType) Batch {
 		defer dbm.lockInMigration.RUnlock()
 
 		if dbm.inMigration {
-			newDBBatch := dbm.getDatabase(StateTrieMigrationDB).NewBatch()
-			oldDBBatch := dbm.getDatabase(StateTrieDB).NewBatch()
+			newDBBatch := dbm.GetDatabase(StateTrieMigrationDB).NewBatch()
+			oldDBBatch := dbm.GetDatabase(StateTrieDB).NewBatch()
 			return NewStateTrieDBBatch([]Batch{oldDBBatch, newDBBatch})
 		}
 	} else if dbEntryType == StateTrieMigrationDB {
 		return dbm.GetStateTrieMigrationDB().NewBatch()
 	}
-	return dbm.getDatabase(dbEntryType).NewBatch()
+	return dbm.GetDatabase(dbEntryType).NewBatch()
 }
 
 func NewStateTrieDBBatch(batches []Batch) Batch {
@@ -589,7 +593,7 @@ func (stdBatch *stateTrieDBBatch) Replay(w KeyValueWriter) error {
 }
 
 func (dbm *databaseManager) getDBDir(dbEntry DBEntryType) string {
-	miscDB := dbm.getDatabase(MiscDB)
+	miscDB := dbm.GetDatabase(MiscDB)
 
 	enc, _ := miscDB.Get(databaseDirKey(uint64(dbEntry)))
 	if len(enc) == 0 {
@@ -599,14 +603,14 @@ func (dbm *databaseManager) getDBDir(dbEntry DBEntryType) string {
 }
 
 func (dbm *databaseManager) setDBDir(dbEntry DBEntryType, newDBDir string) {
-	miscDB := dbm.getDatabase(MiscDB)
+	miscDB := dbm.GetDatabase(MiscDB)
 	if err := miscDB.Put(databaseDirKey(uint64(dbEntry)), []byte(newDBDir)); err != nil {
 		logger.Crit("Failed to put DB dir", "err", err)
 	}
 }
 
 func (dbm *databaseManager) getStateTrieMigrationInfo() uint64 {
-	miscDB := dbm.getDatabase(MiscDB)
+	miscDB := dbm.GetDatabase(MiscDB)
 
 	enc, _ := miscDB.Get(migrationStatusKey)
 	if len(enc) != 8 {
@@ -618,7 +622,7 @@ func (dbm *databaseManager) getStateTrieMigrationInfo() uint64 {
 }
 
 func (dbm *databaseManager) setStateTrieMigrationStatus(blockNum uint64) {
-	miscDB := dbm.getDatabase(MiscDB)
+	miscDB := dbm.GetDatabase(MiscDB)
 	if err := miscDB.Put(migrationStatusKey, common.Int64ToByteBigEndian(blockNum)); err != nil {
 		logger.Crit("Failed to set state trie migration status", "err", err)
 	}
@@ -763,7 +767,7 @@ func (dbm *databaseManager) GetDBConfig() *DBConfig {
 	return dbm.config
 }
 
-func (dbm *databaseManager) getDatabase(dbEntryType DBEntryType) Database {
+func (dbm *databaseManager) GetDatabase(dbEntryType DBEntryType) Database {
 	if dbm.config.DBType == MemoryDB {
 		return dbm.dbs[0]
 	} else {
@@ -794,7 +798,7 @@ func (dbm *databaseManager) ReadCanonicalHash(number uint64) common.Hash {
 		return cached
 	}
 
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	data, _ := db.Get(headerHashKey(number))
 	if len(data) == 0 {
 		return common.Hash{}
@@ -807,7 +811,7 @@ func (dbm *databaseManager) ReadCanonicalHash(number uint64) common.Hash {
 
 // WriteCanonicalHash stores the hash assigned to a canonical block number.
 func (dbm *databaseManager) WriteCanonicalHash(hash common.Hash, number uint64) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if err := db.Put(headerHashKey(number), hash.Bytes()); err != nil {
 		logger.Crit("Failed to store number to hash mapping", "err", err)
 	}
@@ -816,7 +820,7 @@ func (dbm *databaseManager) WriteCanonicalHash(hash common.Hash, number uint64) 
 
 // DeleteCanonicalHash removes the number to hash canonical mapping.
 func (dbm *databaseManager) DeleteCanonicalHash(number uint64) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if err := db.Delete(headerHashKey(number)); err != nil {
 		logger.Crit("Failed to delete number to hash mapping", "err", err)
 	}
@@ -826,7 +830,7 @@ func (dbm *databaseManager) DeleteCanonicalHash(number uint64) {
 // Head Header Hash operations.
 // ReadHeadHeaderHash retrieves the hash of the current canonical head header.
 func (dbm *databaseManager) ReadHeadHeaderHash() common.Hash {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	data, _ := db.Get(headHeaderKey)
 	if len(data) == 0 {
 		return common.Hash{}
@@ -836,7 +840,7 @@ func (dbm *databaseManager) ReadHeadHeaderHash() common.Hash {
 
 // WriteHeadHeaderHash stores the hash of the current canonical head header.
 func (dbm *databaseManager) WriteHeadHeaderHash(hash common.Hash) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
 		logger.Crit("Failed to store last header's hash", "err", err)
 	}
@@ -844,7 +848,7 @@ func (dbm *databaseManager) WriteHeadHeaderHash(hash common.Hash) {
 
 // Block Hash operations.
 func (dbm *databaseManager) ReadHeadBlockHash() common.Hash {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	data, _ := db.Get(headBlockKey)
 	if len(data) == 0 {
 		return common.Hash{}
@@ -854,7 +858,7 @@ func (dbm *databaseManager) ReadHeadBlockHash() common.Hash {
 
 // WriteHeadBlockHash stores the head block's hash.
 func (dbm *databaseManager) WriteHeadBlockHash(hash common.Hash) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
 		logger.Crit("Failed to store last block's hash", "err", err)
 	}
@@ -863,7 +867,7 @@ func (dbm *databaseManager) WriteHeadBlockHash(hash common.Hash) {
 // Head Fast Block Hash operations.
 // ReadHeadFastBlockHash retrieves the hash of the current fast-sync head block.
 func (dbm *databaseManager) ReadHeadFastBlockHash() common.Hash {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	data, _ := db.Get(headFastBlockKey)
 	if len(data) == 0 {
 		return common.Hash{}
@@ -873,7 +877,7 @@ func (dbm *databaseManager) ReadHeadFastBlockHash() common.Hash {
 
 // WriteHeadFastBlockHash stores the hash of the current fast-sync head block.
 func (dbm *databaseManager) WriteHeadFastBlockHash(hash common.Hash) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if err := db.Put(headFastBlockKey, hash.Bytes()); err != nil {
 		logger.Crit("Failed to store last fast block's hash", "err", err)
 	}
@@ -883,7 +887,7 @@ func (dbm *databaseManager) WriteHeadFastBlockHash(hash common.Hash) {
 // ReadFastTrieProgress retrieves the number of tries nodes fast synced to allow
 // reporting correct numbers across restarts.
 func (dbm *databaseManager) ReadFastTrieProgress() uint64 {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	data, _ := db.Get(fastTrieProgressKey)
 	if len(data) == 0 {
 		return 0
@@ -894,7 +898,7 @@ func (dbm *databaseManager) ReadFastTrieProgress() uint64 {
 // WriteFastTrieProgress stores the fast sync trie process counter to support
 // retrieving it across restarts.
 func (dbm *databaseManager) WriteFastTrieProgress(count uint64) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	if err := db.Put(fastTrieProgressKey, new(big.Int).SetUint64(count).Bytes()); err != nil {
 		logger.Crit("Failed to store fast sync trie progress", "err", err)
 	}
@@ -907,7 +911,7 @@ func (dbm *databaseManager) HasHeader(hash common.Hash, number uint64) bool {
 		return true
 	}
 
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if has, err := db.Has(headerKey(number, hash)); !has || err != nil {
 		return false
 	}
@@ -937,7 +941,7 @@ func (dbm *databaseManager) ReadHeader(hash common.Hash, number uint64) *types.H
 
 // ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
 func (dbm *databaseManager) ReadHeaderRLP(hash common.Hash, number uint64) rlp.RawValue {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	data, _ := db.Get(headerKey(number, hash))
 	return data
 }
@@ -945,7 +949,7 @@ func (dbm *databaseManager) ReadHeaderRLP(hash common.Hash, number uint64) rlp.R
 // WriteHeader stores a block header into the database and also stores the hash-
 // to-number mapping.
 func (dbm *databaseManager) WriteHeader(header *types.Header) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	// Write the hash -> number mapping
 	var (
 		hash    = header.Hash()
@@ -973,7 +977,7 @@ func (dbm *databaseManager) WriteHeader(header *types.Header) {
 
 // DeleteHeader removes all block header data associated with a hash.
 func (dbm *databaseManager) DeleteHeader(hash common.Hash, number uint64) {
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	if err := db.Delete(headerKey(number, hash)); err != nil {
 		logger.Crit("Failed to delete header", "err", err)
 	}
@@ -993,7 +997,7 @@ func (dbm *databaseManager) ReadHeaderNumber(hash common.Hash) *uint64 {
 		return cachedHeaderNumber
 	}
 
-	db := dbm.getDatabase(headerDB)
+	db := dbm.GetDatabase(headerDB)
 	data, _ := db.Get(headerNumberKey(hash))
 	if len(data) != 8 {
 		return nil
@@ -1008,7 +1012,7 @@ func (dbm *databaseManager) ReadHeaderNumber(hash common.Hash) *uint64 {
 // (Block)Body operations.
 // HasBody verifies the existence of a block body corresponding to the hash.
 func (dbm *databaseManager) HasBody(hash common.Hash, number uint64) bool {
-	db := dbm.getDatabase(BodyDB)
+	db := dbm.GetDatabase(BodyDB)
 	if has, err := db.Has(blockBodyKey(number, hash)); !has || err != nil {
 		return false
 	}
@@ -1058,7 +1062,7 @@ func (dbm *databaseManager) ReadBodyRLP(hash common.Hash, number uint64) rlp.Raw
 	}
 
 	// not found in cache, find body in database
-	db := dbm.getDatabase(BodyDB)
+	db := dbm.GetDatabase(BodyDB)
 	data, _ := db.Get(blockBodyKey(number, hash))
 
 	// Write to cache at the end of successful read.
@@ -1087,7 +1091,7 @@ func (dbm *databaseManager) ReadBodyRLPByHash(hash common.Hash) rlp.RawValue {
 		return nil
 	}
 
-	db := dbm.getDatabase(BodyDB)
+	db := dbm.GetDatabase(BodyDB)
 	data, _ := db.Get(blockBodyKey(*number, hash))
 
 	// Write to cache at the end of successful read.
@@ -1125,7 +1129,7 @@ func (dbm *databaseManager) PutBodyToBatch(batch Batch, hash common.Hash, number
 func (dbm *databaseManager) WriteBodyRLP(hash common.Hash, number uint64, rlp rlp.RawValue) {
 	dbm.cm.writeBodyRLPCache(hash, rlp)
 
-	db := dbm.getDatabase(BodyDB)
+	db := dbm.GetDatabase(BodyDB)
 	if err := db.Put(blockBodyKey(number, hash), rlp); err != nil {
 		logger.Crit("Failed to store block body", "err", err)
 	}
@@ -1133,7 +1137,7 @@ func (dbm *databaseManager) WriteBodyRLP(hash common.Hash, number uint64, rlp rl
 
 // DeleteBody removes all block body data associated with a hash.
 func (dbm *databaseManager) DeleteBody(hash common.Hash, number uint64) {
-	db := dbm.getDatabase(BodyDB)
+	db := dbm.GetDatabase(BodyDB)
 	if err := db.Delete(blockBodyKey(number, hash)); err != nil {
 		logger.Crit("Failed to delete block body", "err", err)
 	}
@@ -1147,7 +1151,7 @@ func (dbm *databaseManager) ReadTd(hash common.Hash, number uint64) *big.Int {
 		return cachedTd
 	}
 
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	data, _ := db.Get(headerTDKey(number, hash))
 	if len(data) == 0 {
 		return nil
@@ -1165,7 +1169,7 @@ func (dbm *databaseManager) ReadTd(hash common.Hash, number uint64) *big.Int {
 
 // WriteTd stores the total blockscore of a block into the database.
 func (dbm *databaseManager) WriteTd(hash common.Hash, number uint64, td *big.Int) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	data, err := rlp.EncodeToBytes(td)
 	if err != nil {
 		logger.Crit("Failed to RLP encode block total blockscore", "err", err)
@@ -1180,7 +1184,7 @@ func (dbm *databaseManager) WriteTd(hash common.Hash, number uint64, td *big.Int
 
 // DeleteTd removes all block total blockscore data associated with a hash.
 func (dbm *databaseManager) DeleteTd(hash common.Hash, number uint64) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	if err := db.Delete(headerTDKey(number, hash)); err != nil {
 		logger.Crit("Failed to delete block total blockscore", "err", err)
 	}
@@ -1205,7 +1209,7 @@ func (dbm *databaseManager) ReadReceipt(txHash common.Hash) (*types.Receipt, com
 
 // ReadReceipts retrieves all the transaction receipts belonging to a block.
 func (dbm *databaseManager) ReadReceipts(blockHash common.Hash, number uint64) types.Receipts {
-	db := dbm.getDatabase(ReceiptsDB)
+	db := dbm.GetDatabase(ReceiptsDB)
 	// Retrieve the flattened receipt slice
 	data, _ := db.Get(blockReceiptsKey(number, blockHash))
 	if len(data) == 0 {
@@ -1240,7 +1244,7 @@ func (dbm *databaseManager) ReadReceiptsByBlockHash(hash common.Hash) types.Rece
 func (dbm *databaseManager) WriteReceipts(hash common.Hash, number uint64, receipts types.Receipts) {
 	dbm.cm.writeBlockReceiptsCache(hash, receipts)
 
-	db := dbm.getDatabase(ReceiptsDB)
+	db := dbm.GetDatabase(ReceiptsDB)
 	// When putReceiptsToPutter is called from WriteReceipts, txReceipt is cached.
 	dbm.putReceiptsToPutter(db, hash, number, receipts, true)
 }
@@ -1274,7 +1278,7 @@ func (dbm *databaseManager) putReceiptsToPutter(putter KeyValueWriter, hash comm
 func (dbm *databaseManager) DeleteReceipts(hash common.Hash, number uint64) {
 	receipts := dbm.ReadReceipts(hash, number)
 
-	db := dbm.getDatabase(ReceiptsDB)
+	db := dbm.GetDatabase(ReceiptsDB)
 	if err := db.Delete(blockReceiptsKey(number, hash)); err != nil {
 		logger.Crit("Failed to delete block receipts", "err", err)
 	}
@@ -1405,18 +1409,18 @@ func (dbm *databaseManager) FindCommonAncestor(a, b *types.Header) *types.Header
 
 // Istanbul Snapshot operations.
 func (dbm *databaseManager) ReadIstanbulSnapshot(hash common.Hash) ([]byte, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Get(snapshotKey(hash))
 }
 
 func (dbm *databaseManager) WriteIstanbulSnapshot(hash common.Hash, blob []byte) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Put(snapshotKey(hash), blob)
 }
 
 // Merkle Proof operation.
 func (dbm *databaseManager) WriteMerkleProof(key, value []byte) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	if err := db.Put(key, value); err != nil {
 		logger.Crit("Failed to write merkle proof", "err", err)
 	}
@@ -1520,19 +1524,19 @@ func (dbm *databaseManager) ReadPreimageFromNew(hash common.Hash) []byte {
 }
 
 func (dbm *databaseManager) ReadCachedTrieNodeFromOld(hash common.Hash) ([]byte, error) {
-	db := dbm.getDatabase(StateTrieDB)
+	db := dbm.GetDatabase(StateTrieDB)
 	return db.Get(hash[:])
 }
 
 // Cached Trie Node Preimage operation.
 func (dbm *databaseManager) ReadCachedTrieNodePreimageFromOld(secureKey []byte) ([]byte, error) {
-	db := dbm.getDatabase(StateTrieDB)
+	db := dbm.GetDatabase(StateTrieDB)
 	return db.Get(secureKey)
 }
 
 // State Trie Related operations.
 func (dbm *databaseManager) ReadStateTrieNodeFromOld(key []byte) ([]byte, error) {
-	db := dbm.getDatabase(StateTrieDB)
+	db := dbm.GetDatabase(StateTrieDB)
 	return db.Get(key)
 }
 
@@ -1546,7 +1550,7 @@ func (dbm *databaseManager) HasStateTrieNodeFromOld(key []byte) (bool, error) {
 
 // ReadPreimage retrieves a single preimage of the provided hash.
 func (dbm *databaseManager) ReadPreimageFromOld(hash common.Hash) []byte {
-	db := dbm.getDatabase(StateTrieDB)
+	db := dbm.GetDatabase(StateTrieDB)
 	data, _ := db.Get(preimageKey(hash))
 	return data
 }
@@ -1570,7 +1574,7 @@ func (dbm *databaseManager) WritePreimages(number uint64, preimages map[common.H
 // ReadTxLookupEntry retrieves the positional metadata associated with a transaction
 // hash to allow retrieving the transaction or receipt by hash.
 func (dbm *databaseManager) ReadTxLookupEntry(hash common.Hash) (common.Hash, uint64, uint64) {
-	db := dbm.getDatabase(TxLookUpEntryDB)
+	db := dbm.GetDatabase(TxLookUpEntryDB)
 	data, _ := db.Get(TxLookupKey(hash))
 	if len(data) == 0 {
 		return common.Hash{}, 0, 0
@@ -1586,7 +1590,7 @@ func (dbm *databaseManager) ReadTxLookupEntry(hash common.Hash) (common.Hash, ui
 // WriteTxLookupEntries stores a positional metadata for every transaction from
 // a block, enabling hash based transaction and receipt lookups.
 func (dbm *databaseManager) WriteTxLookupEntries(block *types.Block) {
-	db := dbm.getDatabase(TxLookUpEntryDB)
+	db := dbm.GetDatabase(TxLookUpEntryDB)
 	putTxLookupEntriesToPutter(db, block)
 }
 
@@ -1639,7 +1643,7 @@ func putTxLookupEntriesToPutter(putter KeyValueWriter, block *types.Block) {
 
 // DeleteTxLookupEntry removes all transaction data associated with a hash.
 func (dbm *databaseManager) DeleteTxLookupEntry(hash common.Hash) {
-	db := dbm.getDatabase(TxLookUpEntryDB)
+	db := dbm.GetDatabase(TxLookUpEntryDB)
 	db.Delete(TxLookupKey(hash))
 }
 
@@ -1686,7 +1690,7 @@ func (dbm *databaseManager) ReadTxHashFromSenderTxHash(senderTxHash common.Hash)
 		return txHash
 	}
 
-	data, _ := dbm.getDatabase(MiscDB).Get(SenderTxHashToTxHashKey(senderTxHash))
+	data, _ := dbm.GetDatabase(MiscDB).Get(SenderTxHashToTxHashKey(senderTxHash))
 	if len(data) == 0 {
 		return common.Hash{}
 	}
@@ -1700,47 +1704,47 @@ func (dbm *databaseManager) ReadTxHashFromSenderTxHash(senderTxHash common.Hash)
 // ReadBloomBits retrieves the compressed bloom bit vector belonging to the given
 // section and bit index from the.
 func (dbm *databaseManager) ReadBloomBits(bloomBitsKey []byte) ([]byte, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Get(bloomBitsKey)
 }
 
 // WriteBloomBits stores the compressed bloom bits vector belonging to the given
 // section and bit index.
 func (dbm *databaseManager) WriteBloomBits(bloomBitsKey, bits []byte) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Put(bloomBitsKey, bits)
 }
 
 // ValidSections operation.
 func (dbm *databaseManager) ReadValidSections() ([]byte, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Get(validSectionKey)
 }
 
 func (dbm *databaseManager) WriteValidSections(encodedSections []byte) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	db.Put(validSectionKey, encodedSections)
 }
 
 // SectionHead operation.
 func (dbm *databaseManager) ReadSectionHead(encodedSection []byte) ([]byte, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Get(sectionHeadKey(encodedSection))
 }
 
 func (dbm *databaseManager) WriteSectionHead(encodedSection []byte, hash common.Hash) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	db.Put(sectionHeadKey(encodedSection), hash.Bytes())
 }
 
 func (dbm *databaseManager) DeleteSectionHead(encodedSection []byte) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	db.Delete(sectionHeadKey(encodedSection))
 }
 
 // ReadDatabaseVersion retrieves the version number of the database.
 func (dbm *databaseManager) ReadDatabaseVersion() *uint64 {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	var version uint64
 
 	enc, _ := db.Get(databaseVerisionKey)
@@ -1758,7 +1762,7 @@ func (dbm *databaseManager) ReadDatabaseVersion() *uint64 {
 
 // WriteDatabaseVersion stores the version number of the database
 func (dbm *databaseManager) WriteDatabaseVersion(version uint64) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	enc, err := rlp.EncodeToBytes(version)
 	if err != nil {
 		logger.Crit("Failed to encode database version", "err", err)
@@ -1770,7 +1774,7 @@ func (dbm *databaseManager) WriteDatabaseVersion(version uint64) {
 
 // ReadChainConfig retrieves the consensus settings based on the given genesis hash.
 func (dbm *databaseManager) ReadChainConfig(hash common.Hash) *params.ChainConfig {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	data, _ := db.Get(configKey(hash))
 	if len(data) == 0 {
 		return nil
@@ -1784,7 +1788,7 @@ func (dbm *databaseManager) ReadChainConfig(hash common.Hash) *params.ChainConfi
 }
 
 func (dbm *databaseManager) WriteChainConfig(hash common.Hash, cfg *params.ChainConfig) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	if cfg == nil {
 		return
 	}
@@ -1801,7 +1805,7 @@ func (dbm *databaseManager) WriteChainConfig(hash common.Hash, cfg *params.Chain
 // AnchoringData, with the key made with given child chain block hash.
 func (dbm *databaseManager) WriteChildChainTxHash(ccBlockHash common.Hash, ccTxHash common.Hash) {
 	key := childChainTxHashKey(ccBlockHash)
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	if err := db.Put(key, ccTxHash.Bytes()); err != nil {
 		logger.Crit("Failed to store ChildChainTxHash", "ccBlockHash", ccBlockHash.String(), "ccTxHash", ccTxHash.String(), "err", err)
 	}
@@ -1811,7 +1815,7 @@ func (dbm *databaseManager) WriteChildChainTxHash(ccBlockHash common.Hash, ccTxH
 // AnchoringData, with the key made with given child chain block hash.
 func (dbm *databaseManager) ConvertChildChainBlockHashToParentChainTxHash(scBlockHash common.Hash) common.Hash {
 	key := childChainTxHashKey(scBlockHash)
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	data, _ := db.Get(key)
 	if len(data) == 0 {
 		return common.Hash{}
@@ -1822,7 +1826,7 @@ func (dbm *databaseManager) ConvertChildChainBlockHashToParentChainTxHash(scBloc
 // WriteLastIndexedBlockNumber writes the block number which is indexed lastly.
 func (dbm *databaseManager) WriteLastIndexedBlockNumber(blockNum uint64) {
 	key := lastIndexedBlockKey
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	if err := db.Put(key, common.Int64ToByteBigEndian(blockNum)); err != nil {
 		logger.Crit("Failed to store LastIndexedBlockNumber", "blockNumber", blockNum, "err", err)
 	}
@@ -1831,7 +1835,7 @@ func (dbm *databaseManager) WriteLastIndexedBlockNumber(blockNum uint64) {
 // GetLastIndexedBlockNumber returns the last block number which is indexed.
 func (dbm *databaseManager) GetLastIndexedBlockNumber() uint64 {
 	key := lastIndexedBlockKey
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	data, _ := db.Get(key)
 	if len(data) != 8 {
 		return 0
@@ -1842,7 +1846,7 @@ func (dbm *databaseManager) GetLastIndexedBlockNumber() uint64 {
 // WriteAnchoredBlockNumber writes the block number whose data has been anchored to the parent chain.
 func (dbm *databaseManager) WriteAnchoredBlockNumber(blockNum uint64) {
 	key := lastServiceChainTxReceiptKey
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	if err := db.Put(key, common.Int64ToByteBigEndian(blockNum)); err != nil {
 		logger.Crit("Failed to store LatestServiceChainBlockNum", "blockNumber", blockNum, "err", err)
 	}
@@ -1851,7 +1855,7 @@ func (dbm *databaseManager) WriteAnchoredBlockNumber(blockNum uint64) {
 // ReadAnchoredBlockNumber returns the latest block number whose data has been anchored to the parent chain.
 func (dbm *databaseManager) ReadAnchoredBlockNumber() uint64 {
 	key := lastServiceChainTxReceiptKey
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	data, _ := db.Get(key)
 	if len(data) != 8 {
 		return 0
@@ -1862,7 +1866,7 @@ func (dbm *databaseManager) ReadAnchoredBlockNumber() uint64 {
 // WriteHandleTxHashFromRequestTxHash writes handle value transfer tx hash
 // with corresponding request value transfer tx hash.
 func (dbm *databaseManager) WriteHandleTxHashFromRequestTxHash(rTx, hTx common.Hash) {
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	key := valueTransferTxHashKey(rTx)
 	if err := db.Put(key, hTx.Bytes()); err != nil {
 		logger.Crit("Failed to store handle value transfer tx hash", "request tx hash", rTx.String(), "handle tx hash", hTx.String(), "err", err)
@@ -1873,7 +1877,7 @@ func (dbm *databaseManager) WriteHandleTxHashFromRequestTxHash(rTx, hTx common.H
 // with corresponding the given request value transfer tx hash.
 func (dbm *databaseManager) ReadHandleTxHashFromRequestTxHash(rTx common.Hash) common.Hash {
 	key := valueTransferTxHashKey(rTx)
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	data, _ := db.Get(key)
 	if len(data) == 0 {
 		return common.Hash{}
@@ -1885,7 +1889,7 @@ func (dbm *databaseManager) ReadHandleTxHashFromRequestTxHash(rTx common.Hash) c
 // with corresponding block hash. It assumes that a child chain has only one parent chain.
 func (dbm *databaseManager) WriteReceiptFromParentChain(blockHash common.Hash, receipt *types.Receipt) {
 	receiptForStorage := (*types.ReceiptForStorage)(receipt)
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	byte, err := rlp.EncodeToBytes(receiptForStorage)
 	if err != nil {
 		logger.Crit("Failed to RLP encode receipt received from parent chain", "receipt.TxHash", receipt.TxHash, "err", err)
@@ -1899,7 +1903,7 @@ func (dbm *databaseManager) WriteReceiptFromParentChain(blockHash common.Hash, r
 // ReadReceiptFromParentChain returns a receipt received from parent chain to child chain
 // with corresponding block hash. It assumes that a child chain has only one parent chain.
 func (dbm *databaseManager) ReadReceiptFromParentChain(blockHash common.Hash) *types.Receipt {
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	key := receiptFromParentChainKey(blockHash)
 	data, _ := db.Get(key)
 	if data == nil || len(data) == 0 {
@@ -1916,7 +1920,7 @@ func (dbm *databaseManager) ReadReceiptFromParentChain(blockHash common.Hash) *t
 // WriteParentOperatorFeePayer writes a fee payer of parent operator.
 func (dbm *databaseManager) WriteParentOperatorFeePayer(feePayer common.Address) {
 	key := parentOperatorFeePayerPrefix
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 
 	if err := db.Put(key, feePayer.Bytes()); err != nil {
 		logger.Crit("Failed to store parent operator fee payer", "feePayer", feePayer.String(), "err", err)
@@ -1926,7 +1930,7 @@ func (dbm *databaseManager) WriteParentOperatorFeePayer(feePayer common.Address)
 // ReadParentOperatorFeePayer returns a fee payer of parent operator.
 func (dbm *databaseManager) ReadParentOperatorFeePayer() common.Address {
 	key := parentOperatorFeePayerPrefix
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	data, _ := db.Get(key)
 	if data == nil || len(data) == 0 {
 		return common.Address{}
@@ -1937,7 +1941,7 @@ func (dbm *databaseManager) ReadParentOperatorFeePayer() common.Address {
 // WriteChildOperatorFeePayer writes a fee payer of child operator.
 func (dbm *databaseManager) WriteChildOperatorFeePayer(feePayer common.Address) {
 	key := childOperatorFeePayerPrefix
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 
 	if err := db.Put(key, feePayer.Bytes()); err != nil {
 		logger.Crit("Failed to store parent operator fee payer", "feePayer", feePayer.String(), "err", err)
@@ -1947,7 +1951,7 @@ func (dbm *databaseManager) WriteChildOperatorFeePayer(feePayer common.Address) 
 // ReadChildOperatorFeePayer returns a fee payer of child operator.
 func (dbm *databaseManager) ReadChildOperatorFeePayer() common.Address {
 	key := childOperatorFeePayerPrefix
-	db := dbm.getDatabase(bridgeServiceDB)
+	db := dbm.GetDatabase(bridgeServiceDB)
 	data, _ := db.Get(key)
 	if data == nil || len(data) == 0 {
 		return common.Address{}
@@ -1978,17 +1982,17 @@ func (dbm *databaseManager) ReadTxReceiptInCache(txHash common.Hash) *types.Rece
 }
 
 func (dbm *databaseManager) WriteCliqueSnapshot(snapshotBlockHash common.Hash, encodedSnapshot []byte) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Put(snapshotKey(snapshotBlockHash), encodedSnapshot)
 }
 
 func (dbm *databaseManager) ReadCliqueSnapshot(snapshotBlockHash common.Hash) ([]byte, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Get(snapshotKey(snapshotBlockHash))
 }
 
 func (dbm *databaseManager) WriteGovernance(data map[string]interface{}, num uint64) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	b, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -2004,7 +2008,7 @@ func (dbm *databaseManager) WriteGovernance(data map[string]interface{}, num uin
 }
 
 func (dbm *databaseManager) WriteGovernanceIdx(num uint64) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	newSlice := make([]uint64, 0)
 
 	if data, err := db.Get(governanceHistoryKey); err == nil {
@@ -2029,7 +2033,7 @@ func (dbm *databaseManager) WriteGovernanceIdx(num uint64) error {
 }
 
 func (dbm *databaseManager) ReadGovernance(num uint64) (map[string]interface{}, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 
 	if data, err := db.Get(makeKey(governancePrefix, num)); err != nil {
 		return nil, err
@@ -2044,7 +2048,7 @@ func (dbm *databaseManager) ReadGovernance(num uint64) (map[string]interface{}, 
 
 // ReadRecentGovernanceIdx returns latest `count` number of indices. If `count` is 0, it returns all indices.
 func (dbm *databaseManager) ReadRecentGovernanceIdx(count int) ([]uint64, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 
 	if history, err := db.Get(governanceHistoryKey); err != nil {
 		return nil, err
@@ -2090,22 +2094,22 @@ func (dbm *databaseManager) ReadGovernanceAtNumber(num uint64, epoch uint64) (ui
 }
 
 func (dbm *databaseManager) WriteGovernanceState(b []byte) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Put(governanceStateKey, b)
 }
 
 func (dbm *databaseManager) ReadGovernanceState() ([]byte, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Get(governanceStateKey)
 }
 
 func (dbm *databaseManager) WriteChainDataFetcherCheckpoint(checkpoint uint64) error {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	return db.Put(chaindatafetcherCheckpointKey, common.Int64ToByteBigEndian(checkpoint))
 }
 
 func (dbm *databaseManager) ReadChainDataFetcherCheckpoint() (uint64, error) {
-	db := dbm.getDatabase(MiscDB)
+	db := dbm.GetDatabase(MiscDB)
 	data, err := db.Get(chaindatafetcherCheckpointKey)
 	if err != nil {
 		// if the key is not in the database, 0 is returned as the checkpoint
