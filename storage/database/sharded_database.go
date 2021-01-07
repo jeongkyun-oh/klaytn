@@ -161,12 +161,18 @@ func (db *shardedDB) Close() {
 	}
 }
 
+// Compact is not supported on a shardedDB database.
+func (db *shardedDB) Compact(start []byte, limit []byte) error {
+	return nil
+}
+
 // Not enough size of channel slows down the iterator
 const shardedDBCombineChanSize = 1024 // Size of resultCh
 const shardedDBSubChannelSize = 128   // Size of each sub-channel of resultChs
 
 // shardedDBIterator iterates all items of each shardDB.
 // This is useful when you want to get items in serial in binary-alphabetigcal order.
+
 type shardedDBIterator struct {
 	parallelIterator shardedDBParallelIterator
 
