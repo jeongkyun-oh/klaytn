@@ -274,6 +274,9 @@ func (c *core) startNewRound(round *big.Int) {
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
 	if roundChange && c.isProposer() && c.current != nil {
+		if common.Big10.Cmp(newView.Sequence) < 0 && common.Big0.Cmp(newView.Round) == 0 {
+			time.Sleep(1 * time.Second)
+		}
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
 		if c.current.IsHashLocked() {
