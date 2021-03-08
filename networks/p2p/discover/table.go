@@ -572,6 +572,12 @@ func (tab *Table) RetrieveNodes(target common.Hash, nType NodeType, nresults int
 		return []*Node{}
 	}
 	nodes := tab.storages[nType].closest(target, nresults).entries
+	if nType == NodeTypeCN {
+		authorized := tab.storages[nType].getAuthorizedNodes()
+		if authorized != nil {
+			nodes = authorized
+		}
+	}
 	if nType != NodeTypeBN {
 		nodes = removeBn(nodes)
 	}

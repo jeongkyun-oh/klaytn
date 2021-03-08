@@ -25,6 +25,7 @@ import (
 
 	"github.com/klaytn/klaytn/common/hexutil"
 	"github.com/klaytn/klaytn/networks/p2p"
+	"github.com/klaytn/klaytn/networks/p2p/discover"
 )
 
 // PublicNetAPI offers network related RPC methods
@@ -51,6 +52,10 @@ func (s *PublicNetAPI) PeerCount() hexutil.Uint {
 // PeerCountByType returns the number of connected specific types of nodes.
 func (s *PublicNetAPI) PeerCountByType() map[string]uint {
 	return s.net.PeerCountByType()
+}
+
+func (s *PublicNetAPI) GetNodes() []*discover.Node {
+	return s.net.GetNodes(discover.NodeTypeCN, 100)
 }
 
 // Version returns the current klaytn protocol version.

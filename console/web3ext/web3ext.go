@@ -833,6 +833,11 @@ web3._extend({
 			call: 'net_peerCountByType',
 			params: 0,
 		}),
+		new web3._extend.Method({
+			name: 'getNodes',
+			call: 'net_getNodes',
+			params: 0,
+		}),
 	],
 	properties: [
 		new web3._extend.Property({
