@@ -95,6 +95,7 @@ func newWeightedValidator(addr common.Address, reward common.Address, votingpowe
 
 type weightedCouncil struct {
 	subSize    uint64
+	demoted    istanbul.Validators
 	validators istanbul.Validators
 	policy     istanbul.ProposerPolicy
 
@@ -521,6 +522,10 @@ func (valSet *weightedCouncil) GetValidators() []istanbul.Validator {
 	return valSet.validators
 }
 
+func (valSet *weightedCouncil) GetDemotedValidators() []istanbul.Validator {
+	return valSet.demoted
+}
+
 func (valSet *weightedCouncil) Copy() istanbul.ValidatorSet {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
@@ -536,6 +541,9 @@ func (valSet *weightedCouncil) Copy() istanbul.ValidatorSet {
 	}
 	newWeightedCouncil.validators = make([]istanbul.Validator, len(valSet.validators))
 	copy(newWeightedCouncil.validators, valSet.validators)
+
+	newWeightedCouncil.demoted = make([]istanbul.Validator, len(valSet.demoted))
+	copy(newWeightedCouncil.demoted, valSet.demoted)
 
 	newWeightedCouncil.proposers = make([]istanbul.Validator, len(valSet.proposers))
 	copy(newWeightedCouncil.proposers, valSet.proposers)
@@ -592,10 +600,15 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 		return errors.New("skip refreshing proposers due to no staking info")
 	}
 
-	weightedValidators, stakingAmounts, err := valSet.getStakingAmountsOfValidators(newStakingInfo)
+	candidates := append(valSet.validators, valSet.demoted...)
+	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, newStakingInfo)
 	if err != nil {
 		return err
 	}
+	weightedValidators, stakingAmounts, demotedValidators, _ := filterPoorValidators(weightedValidators, stakingAmounts)
+	valSet.setValidators(weightedValidators, demotedValidators)
+	valSet.SetBlockNum(blockNum)
+
 	totalStaking := calcTotalAmount(weightedValidators, newStakingInfo, stakingAmounts)
 	calcWeight(weightedValidators, stakingAmounts, totalStaking)
 
@@ -607,17 +620,60 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 	return nil
 }
 
+func (valSet *weightedCouncil) setValidators(validators []*weightedValidator, demoted []*weightedValidator) {
+	var (
+		newValidators istanbul.Validators
+		newDemoted    istanbul.Validators
+	)
+
+	for _, val := range validators {
+		newValidators = append(newValidators, val)
+	}
+
+	for _, val := range demoted {
+		newDemoted = append(newDemoted, val)
+	}
+
+	valSet.validators = newValidators
+	valSet.demoted = newDemoted
+}
+
+func filterPoorValidators(weightedValidators []*weightedValidator, stakingAmounts []float64) ([]*weightedValidator, []float64, []*weightedValidator, []float64) {
+	var (
+		newWeightedValidators []*weightedValidator
+		newWeightedDemoted    []*weightedValidator
+		newValidatorsStaking  []float64
+		newDemotedStaking     []float64
+	)
+	amount := params.MinimumStakingAmount()
+	for idx, val := range stakingAmounts {
+		if uint64(val) >= amount.Uint64() {
+			newWeightedValidators = append(newWeightedValidators, weightedValidators[idx])
+			newValidatorsStaking = append(newValidatorsStaking, val)
+		} else {
+			newWeightedDemoted = append(newWeightedDemoted, weightedValidators[idx])
+			newDemotedStaking = append(newDemotedStaking, val)
+		}
+	}
+
+	if len(newWeightedValidators) <= 0 {
+		return newWeightedDemoted, newDemotedStaking, nil, nil
+	} else {
+		return newWeightedValidators, newValidatorsStaking, newWeightedDemoted, newDemotedStaking
+	}
+}
+
 // getStakingAmountsOfValidators calculates stakingAmounts of validators.
 // If validators have multiple staking contracts, stakingAmounts will be a sum of stakingAmounts with the same rewardAddress.
 //  - []*weightedValidator : a list of validators which type is converted to weightedValidator
 //  - []float64 : a list of stakingAmounts.
-func (valSet *weightedCouncil) getStakingAmountsOfValidators(stakingInfo *reward.StakingInfo) ([]*weightedValidator, []float64, error) {
-	numValidators := len(valSet.validators)
+func getStakingAmountsOfValidators(candidates istanbul.Validators, stakingInfo *reward.StakingInfo) ([]*weightedValidator, []float64, error) {
+	numValidators := len(candidates)
 	weightedValidators := make([]*weightedValidator, numValidators)
 	stakingAmounts := make([]float64, numValidators)
 	addedStaking := make([]bool, len(stakingInfo.CouncilNodeAddrs))
 
-	for vIdx, val := range valSet.validators {
+	for vIdx, val := range candidates {
 		weightedVal, ok := val.(*weightedValidator)
 		if !ok {
 			return nil, nil, errors.New(fmt.Sprintf("not weightedValidator. val=%s", val.Address().String()))
