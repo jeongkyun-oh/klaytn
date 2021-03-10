@@ -537,10 +537,6 @@ func (valSet *weightedCouncil) GetValidators() []istanbul.Validator {
 	return valSet.validators
 }
 
-func (valSet *weightedCouncil) GetDemotedValidators() []istanbul.Validator {
-	return valSet.demoted
-}
-
 func (valSet *weightedCouncil) Copy() istanbul.ValidatorSet {
 	valSet.validatorMu.RLock()
 	defer valSet.validatorMu.RUnlock()
@@ -615,13 +611,16 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 		return errors.New("skip refreshing proposers due to no staking info")
 	}
 
+	// get staking amounts of validators and demoted ones
 	candidates := append(valSet.validators, valSet.demoted...)
 	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, newStakingInfo)
 	if err != nil {
 		return err
 	}
+	// divide the obtained validators into two groups which have enough amount of staking
 	weightedValidators, stakingAmounts, demotedValidators, _ := filterPoorValidators(weightedValidators, stakingAmounts)
-	valSet.setValidators(weightedValidators, demotedValidators)
+	// update new validators and demoted validators of the council
+	valSet.updateValidators(weightedValidators, demotedValidators)
 	valSet.SetBlockNum(blockNum)
 
 	totalStaking := calcTotalAmount(weightedValidators, newStakingInfo, stakingAmounts)
@@ -635,7 +634,8 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 	return nil
 }
 
-func (valSet *weightedCouncil) setValidators(validators []*weightedValidator, demoted []*weightedValidator) {
+// updateValidators converts weighted validator slice to istanbul.Validators and sets them to the council.
+func (valSet *weightedCouncil) updateValidators(validators []*weightedValidator, demoted []*weightedValidator) {
 	var (
 		newValidators istanbul.Validators
 		newDemoted    istanbul.Validators
@@ -653,6 +653,7 @@ func (valSet *weightedCouncil) setValidators(validators []*weightedValidator, de
 	valSet.demoted = newDemoted
 }
 
+// filterPoorValidators divided the given weightedValidators into two group filtered by the minimum amount of staking.
 func filterPoorValidators(weightedValidators []*weightedValidator, stakingAmounts []float64) ([]*weightedValidator, []float64, []*weightedValidator, []float64) {
 	var (
 		newWeightedValidators []*weightedValidator
