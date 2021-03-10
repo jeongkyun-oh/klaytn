@@ -133,7 +133,7 @@ func RecoverWeightedCouncilProposer(valSet istanbul.ValidatorSet, proposerAddrs 
 	weightedCouncil.proposers = proposers
 }
 
-func NewWeightedCouncil(addrs []common.Address, rewards []common.Address, votingPowers []uint64, weights []uint64, policy istanbul.ProposerPolicy, committeeSize uint64, blockNum uint64, proposersBlockNum uint64, chain consensus.ChainReader) *weightedCouncil {
+func NewWeightedCouncil(addrs []common.Address, demotedAddrs []common.Address, rewards []common.Address, votingPowers []uint64, weights []uint64, policy istanbul.ProposerPolicy, committeeSize uint64, blockNum uint64, proposersBlockNum uint64, chain consensus.ChainReader) *weightedCouncil {
 
 	if policy != istanbul.WeightedRandom {
 		logger.Error("unsupported proposer policy for weighted council", "policy", policy)
@@ -194,8 +194,17 @@ func NewWeightedCouncil(addrs []common.Address, rewards []common.Address, voting
 		valSet.validators[i] = newWeightedValidator(addr, rewards[i], votingPowers[i], weights[i])
 	}
 
-	// sort validator
+	// sort validators
 	sort.Sort(valSet.validators)
+
+	// init demoted validators
+	valSet.demoted = make([]istanbul.Validator, len(demotedAddrs))
+	for i, addr := range demotedAddrs {
+		valSet.validators[i] = newWeightedValidator(addr, common.Address{}, 1000, 0)
+	}
+
+	// sort demoted validators
+	sort.Sort(valSet.demoted)
 
 	// init proposer
 	if valSet.Size() > 0 {
@@ -214,7 +223,7 @@ func NewWeightedCouncil(addrs []common.Address, rewards []common.Address, voting
 	return valSet
 }
 
-func GetWeightedCouncilData(valSet istanbul.ValidatorSet) (validators []common.Address, rewardAddrs []common.Address, votingPowers []uint64, weights []uint64, proposers []common.Address, proposersBlockNum uint64) {
+func GetWeightedCouncilData(valSet istanbul.ValidatorSet) (validators []common.Address, demoted []common.Address, rewardAddrs []common.Address, votingPowers []uint64, weights []uint64, proposers []common.Address, proposersBlockNum uint64) {
 
 	weightedCouncil, ok := valSet.(*weightedCouncil)
 	if !ok {
@@ -234,6 +243,12 @@ func GetWeightedCouncilData(valSet istanbul.ValidatorSet) (validators []common.A
 			rewardAddrs[i] = weightedVal.RewardAddress()
 			votingPowers[i] = weightedVal.votingPower
 			weights[i] = atomic.LoadUint64(&weightedVal.weight)
+		}
+
+		numDemoted := len(weightedCouncil.demoted)
+		demoted = make([]common.Address, numDemoted)
+		for i, val := range weightedCouncil.demoted {
+			demoted[i] = val.Address()
 		}
 
 		proposers = make([]common.Address, len(weightedCouncil.proposers))
