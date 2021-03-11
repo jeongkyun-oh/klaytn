@@ -102,6 +102,7 @@ type ValidatorSet interface {
 
 	IsSubSet() bool
 
+	Update(hash common.Hash, blockNum uint64) error
 	// Refreshes a list of candidate proposers with given hash and blockNum
 	Refresh(hash common.Hash, blockNum uint64) error
 

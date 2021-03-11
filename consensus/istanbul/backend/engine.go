@@ -634,10 +634,19 @@ func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash com
 		return nil, err
 	}
 	if sb.governance.ProposerPolicy() == uint64(istanbul.WeightedRandom) {
+		pHeader := chain.GetHeaderByNumber(params.CalcStakingBlockNumber(snap.Number + 1))
+		if pHeader != nil {
+			if err := snap.ValSet.Update(pHeader.Hash(), pHeader.Number.Uint64()); err != nil {
+				logger.Trace("Skip refreshing proposers while creating snapshot", "snap.Number", snap.Number, "pHeader.Number", pHeader.Number.Uint64(), "err", err)
+			}
+		} else {
+			logger.Trace("Can't refreshing proposers while creating snapshot due to lack of required header", "snap.Number", snap.Number)
+		}
+
 		// Snapshot of block N (Snapshot_N) should contain proposers for N+1 and following blocks.
 		// And proposers for Block N+1 can be calculated from the nearest previous proposersUpdateInterval block.
 		// Let's refresh proposers in Snapshot_N using previous proposersUpdateInterval block for N+1, if not updated yet.
-		pHeader := chain.GetHeaderByNumber(params.CalcProposerBlockNumber(snap.Number + 1))
+		pHeader = chain.GetHeaderByNumber(params.CalcProposerBlockNumber(snap.Number + 1))
 		if pHeader != nil {
 			if err := snap.ValSet.Refresh(pHeader.Hash(), pHeader.Number.Uint64()); err != nil {
 				// There are three error cases and they just don't refresh proposers
