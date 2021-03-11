@@ -684,6 +684,7 @@ func filterPoorValidators(weightedValidators []*weightedValidator, stakingAmount
 		newDemotedStaking     []float64
 	)
 	amount := params.MinimumStakingAmount()
+	logger.Info("==> filterPoorValidators", "minimumstaking", amount)
 	for idx, val := range stakingAmounts {
 		if uint64(val) >= amount.Uint64() {
 			newWeightedValidators = append(newWeightedValidators, weightedValidators[idx])

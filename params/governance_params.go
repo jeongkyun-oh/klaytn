@@ -19,7 +19,11 @@ package params
 import (
 	"math/big"
 	"sync/atomic"
+
+	"github.com/klaytn/klaytn/log"
 )
+
+var logger = log.NewModuleLogger(log.Governance)
 
 const (
 	// Because we need int64 type to allocate big.Int, define these parameters as int64 type.
@@ -182,9 +186,12 @@ func ProposerUpdateInterval() uint64 {
 }
 
 func SetMinimumStakingAmount(val *big.Int) {
+	logger.Info("set minimum staking amount", "previous", minimumStakingAmount.Uint64(), "after", val.Uint64())
 	minimumStakingAmount.Set(val)
+	MinimumStakingAmount()
 }
 
 func MinimumStakingAmount() *big.Int {
+	logger.Info("MinimumStakingAmount", "val", minimumStakingAmount.Uint64())
 	return minimumStakingAmount
 }

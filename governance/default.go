@@ -751,6 +751,8 @@ func (gov *Governance) UpdateGovernance(number uint64, governance []byte) {
 			if err := gov.WriteGovernance(number, gov.currentSet, tempSet); err != nil {
 				logger.Crit("Failed to store new governance data", "number", number, "err", err)
 			}
+			_, data, _ := gov.ReadGovernance(number)
+			logger.Info("==> governance data", "data", tempItems, "minimumStaking", params.MinimumStakingAmount(), "readGovernance", data)
 		}
 	}
 }
@@ -766,6 +768,7 @@ func (gov *Governance) UpdateCurrentGovernance(num uint64) {
 		gov.actualGovernanceBlock.Store(newNumber)
 		gov.currentSet.Import(newGovernanceSet)
 		gov.triggerChange(newGovernanceSet)
+		logger.Info("==> after update current covernance", "newGovernanceSet", newGovernanceSet, "minimumStaking", params.MinimumStakingAmount())
 	}
 }
 

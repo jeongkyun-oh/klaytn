@@ -637,10 +637,12 @@ func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash com
 		pHeader := chain.GetHeaderByNumber(params.CalcStakingBlockNumber(snap.Number + 1))
 		if pHeader != nil {
 			if err := snap.ValSet.Update(pHeader.Hash(), pHeader.Number.Uint64()); err != nil {
-				logger.Trace("Skip refreshing proposers while creating snapshot", "snap.Number", snap.Number, "pHeader.Number", pHeader.Number.Uint64(), "err", err)
+				logger.Error("Skip refreshing validators while creating snapshot", "snap.Number", snap.Number, "pHeader.Number", pHeader.Number.Uint64(), "err", err)
+			} else {
+				logger.Info("==> update was successful", "minimumStaking", params.MinimumStakingAmount(), "number", snap.Number)
 			}
 		} else {
-			logger.Trace("Can't refreshing proposers while creating snapshot due to lack of required header", "snap.Number", snap.Number)
+			logger.Error("Can't refreshing validators while creating snapshot due to lack of required header", "snap.Number", snap.Number)
 		}
 
 		// Snapshot of block N (Snapshot_N) should contain proposers for N+1 and following blocks.
