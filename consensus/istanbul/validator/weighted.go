@@ -572,6 +572,36 @@ func (valSet *weightedCouncil) F() int {
 
 func (valSet *weightedCouncil) Policy() istanbul.ProposerPolicy { return valSet.policy }
 
+func (valSet *weightedCouncil) Update(hash common.Hash, blockNum uint64) error {
+	valSet.validatorMu.Lock()
+	defer valSet.validatorMu.Unlock()
+
+	newStakingInfo := reward.GetStakingInfo(blockNum + 1)
+
+	valSet.stakingInfo = newStakingInfo
+	if valSet.stakingInfo == nil {
+		// Just return without updating proposer
+		return errors.New("skip refreshing proposers due to no staking info")
+	}
+
+	// get staking amounts of validators and demoted ones
+	candidates := append(valSet.validators, valSet.demoted...)
+	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, newStakingInfo)
+	if err != nil {
+		return err
+	}
+	// divide the obtained validators into two groups which have enough amount of staking
+	weightedValidators, stakingAmounts, demotedValidators, _ := filterPoorValidators(weightedValidators, stakingAmounts)
+	// update new validators and demoted validators of the council
+	valSet.updateValidators(weightedValidators, demotedValidators)
+	valSet.SetBlockNum(blockNum)
+
+	totalStaking := calcTotalAmount(weightedValidators, newStakingInfo, stakingAmounts)
+	calcWeight(weightedValidators, stakingAmounts, totalStaking)
+
+	return nil
+}
+
 // Refresh recalculates up-to-date proposers only when blockNum is the proposer update interval.
 // It returns an error if it can't make up-to-date proposers
 //   (1) due toe wrong parameters
@@ -611,18 +641,10 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 		return errors.New("skip refreshing proposers due to no staking info")
 	}
 
-	// get staking amounts of validators and demoted ones
-	candidates := append(valSet.validators, valSet.demoted...)
-	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, newStakingInfo)
+	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(valSet.validators, newStakingInfo)
 	if err != nil {
 		return err
 	}
-	// divide the obtained validators into two groups which have enough amount of staking
-	weightedValidators, stakingAmounts, demotedValidators, _ := filterPoorValidators(weightedValidators, stakingAmounts)
-	// update new validators and demoted validators of the council
-	valSet.updateValidators(weightedValidators, demotedValidators)
-	valSet.SetBlockNum(blockNum)
-
 	totalStaking := calcTotalAmount(weightedValidators, newStakingInfo, stakingAmounts)
 	calcWeight(weightedValidators, stakingAmounts, totalStaking)
 

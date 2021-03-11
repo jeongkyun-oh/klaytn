@@ -360,6 +360,10 @@ func (valSet *defaultSet) F() int {
 
 func (valSet *defaultSet) Policy() istanbul.ProposerPolicy { return valSet.policy }
 
+func (valSet *defaultSet) Update(hash common.Hash, blockNum uint64) error {
+	return nil
+}
+
 func (valSet *defaultSet) Refresh(hash common.Hash, blockNum uint64) error {
 	return nil
 }
