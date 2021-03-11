@@ -580,8 +580,8 @@ func (valSet *weightedCouncil) Update(hash common.Hash, blockNum uint64) error {
 
 	valSet.stakingInfo = newStakingInfo
 	if valSet.stakingInfo == nil {
-		// Just return without updating proposer
-		return errors.New("skip refreshing proposers due to no staking info")
+		// Just return without updating validators
+		return errors.New("skip updating validators due to no staking info")
 	}
 
 	// get staking amounts of validators and demoted ones
