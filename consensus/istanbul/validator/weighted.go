@@ -200,7 +200,7 @@ func NewWeightedCouncil(addrs []common.Address, demotedAddrs []common.Address, r
 	// init demoted validators
 	valSet.demoted = make([]istanbul.Validator, len(demotedAddrs))
 	for i, addr := range demotedAddrs {
-		valSet.validators[i] = newWeightedValidator(addr, common.Address{}, 1000, 0)
+		valSet.demoted[i] = newWeightedValidator(addr, common.Address{}, 1000, 0)
 	}
 
 	// sort demoted validators
