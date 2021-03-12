@@ -71,6 +71,7 @@ var (
 		"istanbul.policy":               params.Policy,
 		"reward.stakingupdateinterval":  params.StakeUpdateInterval,
 		"reward.proposerupdateinterval": params.ProposerRefreshInterval,
+		"reward.minimumstake":           params.MinimumStake,
 	}
 
 	GovernanceKeyMapReverse = map[int]string{
