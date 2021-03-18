@@ -693,7 +693,7 @@ func filterPoorValidators(weightedValidators []*weightedValidator, stakingAmount
 	}
 
 	if len(newWeightedValidators) <= 0 {
-		return newWeightedDemoted, newDemotedStaking, nil, nil
+		return newWeightedDemoted, newDemotedStaking, []*weightedValidator{}, []float64{}
 	} else {
 		return newWeightedValidators, newValidatorsStaking, newWeightedDemoted, newDemotedStaking
 	}
