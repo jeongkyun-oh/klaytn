@@ -577,12 +577,11 @@ func (valSet *weightedCouncil) Update(hash common.Hash, blockNum uint64) error {
 	defer valSet.validatorMu.Unlock()
 
 	newStakingInfo := reward.GetStakingInfo(blockNum + 1)
-
-	valSet.stakingInfo = newStakingInfo
-	if valSet.stakingInfo == nil {
+	if newStakingInfo == nil {
 		// Just return without updating validators
 		return errors.New("skip updating validators due to no staking info")
 	}
+	valSet.stakingInfo = newStakingInfo
 
 	// get staking amounts of validators and demoted ones
 	candidates := append(valSet.validators, valSet.demoted...)
@@ -634,12 +633,11 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 	}
 
 	newStakingInfo := reward.GetStakingInfo(blockNum + 1)
-
-	valSet.stakingInfo = newStakingInfo
-	if valSet.stakingInfo == nil {
+	if newStakingInfo == nil {
 		// Just return without updating proposer
 		return errors.New("skip refreshing proposers due to no staking info")
 	}
+	valSet.stakingInfo = newStakingInfo
 
 	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(valSet.validators, newStakingInfo)
 	if err != nil {
