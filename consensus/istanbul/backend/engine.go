@@ -634,9 +634,12 @@ func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash com
 		return nil, err
 	}
 	if sb.governance.ProposerPolicy() == uint64(istanbul.WeightedRandom) {
+		// Based on the block in which staking information is updated, the validators will be recalculated.
+		// The validators staking less than minimum staking amount will be demoted into the group and
+		// they will not be in the committee as well as the proposer candidates list.
 		pHeader := chain.GetHeaderByNumber(params.CalcStakingBlockNumber(snap.Number + 1))
 		if pHeader != nil {
-			if err := snap.ValSet.Update(pHeader.Hash(), pHeader.Number.Uint64()); err != nil {
+			if err := snap.ValSet.TransitionValidators(pHeader.Hash(), pHeader.Number.Uint64()); err != nil {
 				logger.Trace("Skip updating validators while creating snapshot", "snap.Number", snap.Number, "pHeader.Number", pHeader.Number.Uint64(), "err", err)
 			}
 		} else {

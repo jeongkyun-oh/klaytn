@@ -99,7 +99,7 @@ func TestWeightedCouncil_getStakingAmountsOfValidators(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		council := newTestWeightedCouncil(testCase.validators)
-		candidates := append(council.validators, council.demoted...)
+		candidates := append(council.validators, council.demotedValidators...)
 		weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, testCase.stakingInfo)
 
 		assert.NoError(t, err)
@@ -307,7 +307,7 @@ func TestWeightedCouncil_validatorWeightWithStakingInfo(t *testing.T) {
 	}
 	for _, testCase := range testCases {
 		council := newTestWeightedCouncil(testCase.validators)
-		candidates := append(council.validators, council.demoted...)
+		candidates := append(council.validators, council.demotedValidators...)
 		weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, testCase.stakingInfo)
 		assert.NoError(t, err)
 		totalStaking := calcTotalAmount(weightedValidators, testCase.stakingInfo, stakingAmounts)
