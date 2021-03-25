@@ -71,7 +71,6 @@ var (
 		"istanbul.policy":               params.Policy,
 		"reward.stakingupdateinterval":  params.StakeUpdateInterval,
 		"reward.proposerupdateinterval": params.ProposerRefreshInterval,
-		"reward.minimumstake":           params.MinimumStake,
 	}
 
 	GovernanceKeyMapReverse = map[int]string{
@@ -443,6 +442,9 @@ func NewGovernanceInitialize(chainConfig *params.ChainConfig, dbm database.DBMan
 func (g *Governance) updateGovernanceParams() {
 	params.SetStakingUpdateInterval(g.StakingUpdateInterval())
 	params.SetProposerUpdateInterval(g.ProposerUpdateInterval())
+	if val, ok := new(big.Int).SetString(g.MinimumStake(), 10); ok {
+		params.SetMinimumStakingAmount(val)
+	}
 
 	if txGasHumanReadable, ok := g.currentSet.GetValue(params.ConstTxGasHumanReadable); ok {
 		params.TxGasHumanReadable = txGasHumanReadable.(uint64)
