@@ -424,6 +424,7 @@ func NewGovernanceInitialize(chainConfig *params.ChainConfig, dbm database.DBMan
 	ret := NewGovernance(chainConfig, dbm)
 	// nil is for testing or simple function usage
 	if dbm != nil {
+		ret.ReadGovernanceState()
 		if err := ret.initializeCache(); err != nil {
 			// If this is the first time to run, store governance information for genesis block on database
 			cfg := GetGovernanceItemsFromChainConfig(chainConfig)
@@ -435,9 +436,17 @@ func NewGovernanceInitialize(chainConfig *params.ChainConfig, dbm database.DBMan
 				logger.Crit("No governance cache index found in a database", "err", err)
 			}
 		}
-		ret.ReadGovernanceState()
 	}
 	return ret
+}
+
+func (g *Governance) updateGovernanceParams() {
+	params.SetStakingUpdateInterval(g.StakingUpdateInterval())
+	params.SetProposerUpdateInterval(g.ProposerUpdateInterval())
+
+	if txGasHumanReadable, ok := g.currentSet.GetValue(params.ConstTxGasHumanReadable); ok {
+		params.TxGasHumanReadable = txGasHumanReadable.(uint64)
+	}
 }
 
 func (g *Governance) SetNodeAddress(addr common.Address) {
@@ -610,9 +619,14 @@ func (g *Governance) initializeCache() error {
 		}
 	}
 
-	// the last one is the one to be used now
-	ret, _ := g.itemCache.Get(getGovernanceCacheKey(g.actualGovernanceBlock.Load().(uint64)))
-	g.currentSet.Import(ret.(map[string]interface{}))
+	governanceBlock := g.actualGovernanceBlock.Load().(uint64)
+	governanceStateBlock := atomic.LoadUint64(&g.lastGovernanceStateBlock)
+	if governanceBlock >= governanceStateBlock {
+		ret, _ := g.itemCache.Get(getGovernanceCacheKey(governanceBlock))
+		g.currentSet.Import(ret.(map[string]interface{}))
+		g.updateGovernanceParams()
+	}
+
 	return nil
 }
 
@@ -908,15 +922,8 @@ func (gov *Governance) ReadGovernanceState() {
 		return
 	}
 	gov.UnmarshalJSON(b)
-	params.SetStakingUpdateInterval(gov.StakingUpdateInterval())
-	params.SetProposerUpdateInterval(gov.ProposerUpdateInterval())
-	if minimumStakingAmount, ok := new(big.Int).SetString(gov.MinimumStake(), 10); ok {
-		params.SetMinimumStakingAmount(minimumStakingAmount)
-	}
+	gov.updateGovernanceParams()
 
-	if txGasHumanReadable, ok := gov.currentSet.GetValue(params.ConstTxGasHumanReadable); ok {
-		params.TxGasHumanReadable = txGasHumanReadable.(uint64)
-	}
 	logger.Info("Successfully loaded governance state from database", "blockNumber", atomic.LoadUint64(&gov.lastGovernanceStateBlock))
 }
 
