@@ -94,10 +94,10 @@ func newWeightedValidator(addr common.Address, reward common.Address, votingpowe
 }
 
 type weightedCouncil struct {
-	subSize           uint64
-	demotedValidators istanbul.Validators // validators staking KLAYs less than minimum, and not in committee/proposers
-	validators        istanbul.Validators // validators staking KLAYs more than and equals to minimum, and in committee/proposers
-	policy            istanbul.ProposerPolicy
+	subSize    uint64
+	candidates istanbul.Validators // candidates of validators
+	validators istanbul.Validators // validators staking KLAYs more than and equals to minimum, and in committee/proposers
+	policy     istanbul.ProposerPolicy
 
 	proposer    atomic.Value // istanbul.Validator
 	validatorMu sync.RWMutex
@@ -133,7 +133,7 @@ func RecoverWeightedCouncilProposer(valSet istanbul.ValidatorSet, proposerAddrs 
 	weightedCouncil.proposers = proposers
 }
 
-func NewWeightedCouncil(addrs []common.Address, demotedAddrs []common.Address, rewards []common.Address, votingPowers []uint64, weights []uint64, policy istanbul.ProposerPolicy, committeeSize uint64, blockNum uint64, proposersBlockNum uint64, chain consensus.ChainReader) *weightedCouncil {
+func NewWeightedCouncil(addrs []common.Address, candidatesAddrs []common.Address, rewards []common.Address, votingPowers []uint64, weights []uint64, policy istanbul.ProposerPolicy, committeeSize uint64, blockNum uint64, proposersBlockNum uint64, chain consensus.ChainReader) *weightedCouncil {
 
 	if policy != istanbul.WeightedRandom {
 		logger.Error("unsupported proposer policy for weighted council", "policy", policy)
@@ -197,14 +197,14 @@ func NewWeightedCouncil(addrs []common.Address, demotedAddrs []common.Address, r
 	// sort validators
 	sort.Sort(valSet.validators)
 
-	// init demoted validators
-	valSet.demotedValidators = make([]istanbul.Validator, len(demotedAddrs))
-	for i, addr := range demotedAddrs {
-		valSet.demotedValidators[i] = newWeightedValidator(addr, common.Address{}, 1000, 0)
+	// init candidates
+	valSet.candidates = make([]istanbul.Validator, len(candidatesAddrs))
+	for i, addr := range candidatesAddrs {
+		valSet.candidates[i] = newWeightedValidator(addr, common.Address{}, 1000, 0)
 	}
 
-	// sort demoted validators
-	sort.Sort(valSet.demotedValidators)
+	// sort candidates
+	sort.Sort(valSet.candidates)
 
 	// init proposer
 	if valSet.Size() > 0 {
@@ -223,7 +223,7 @@ func NewWeightedCouncil(addrs []common.Address, demotedAddrs []common.Address, r
 	return valSet
 }
 
-func GetWeightedCouncilData(valSet istanbul.ValidatorSet) (validators []common.Address, demotedValidators []common.Address, rewardAddrs []common.Address, votingPowers []uint64, weights []uint64, proposers []common.Address, proposersBlockNum uint64) {
+func GetWeightedCouncilData(valSet istanbul.ValidatorSet) (validators []common.Address, candidates []common.Address, rewardAddrs []common.Address, votingPowers []uint64, weights []uint64, proposers []common.Address, proposersBlockNum uint64) {
 
 	weightedCouncil, ok := valSet.(*weightedCouncil)
 	if !ok {
@@ -245,10 +245,10 @@ func GetWeightedCouncilData(valSet istanbul.ValidatorSet) (validators []common.A
 			weights[i] = atomic.LoadUint64(&weightedVal.weight)
 		}
 
-		numDemoted := len(weightedCouncil.demotedValidators)
-		demotedValidators = make([]common.Address, numDemoted)
-		for i, val := range weightedCouncil.demotedValidators {
-			demotedValidators[i] = val.Address()
+		numCandidates := len(weightedCouncil.candidates)
+		candidates = make([]common.Address, numCandidates)
+		for i, val := range weightedCouncil.candidates {
+			candidates[i] = val.Address()
 		}
 
 		proposers = make([]common.Address, len(weightedCouncil.proposers))
@@ -483,22 +483,18 @@ func (valSet *weightedCouncil) CalcProposer(lastProposer common.Address, round u
 func (valSet *weightedCouncil) AddValidator(address common.Address) bool {
 	valSet.validatorMu.Lock()
 	defer valSet.validatorMu.Unlock()
-	for _, v := range valSet.validators {
-		if v.Address() == address {
-			return false
-		}
-	}
-	for _, v := range valSet.demotedValidators {
+	for _, v := range valSet.candidates {
 		if v.Address() == address {
 			return false
 		}
 	}
 
 	// TODO-Klaytn-Issue1336 Update for governance implementation. How to determine initial value for rewardAddress and votingPower ?
+	valSet.candidates = append(valSet.candidates, newWeightedValidator(address, common.Address{}, 1000, 0))
 	valSet.validators = append(valSet.validators, newWeightedValidator(address, common.Address{}, 1000, 0))
 
-	// sort validator
-	sort.Sort(valSet.validators)
+	// sort candidates
+	sort.Sort(valSet.candidates)
 	return true
 }
 
@@ -515,6 +511,19 @@ func (valSet *weightedCouncil) removeValidatorFromProposers(address common.Addre
 	valSet.proposers = newProposers
 }
 
+// removeValidatorFromCandidates remove a candidate from candidates if exists.
+func (valSet *weightedCouncil) removeValidatorFromCandidates(address common.Address) {
+	newCandidates := make([]istanbul.Validator, 0, len(valSet.candidates))
+
+	for _, v := range valSet.candidates {
+		if v.Address() != address {
+			newCandidates = append(newCandidates, v)
+		}
+	}
+
+	valSet.candidates = newCandidates
+}
+
 func (valSet *weightedCouncil) RemoveValidator(address common.Address) bool {
 	valSet.validatorMu.Lock()
 	defer valSet.validatorMu.Unlock()
@@ -523,12 +532,7 @@ func (valSet *weightedCouncil) RemoveValidator(address common.Address) bool {
 		if v.Address() == address {
 			valSet.validators = append(valSet.validators[:i], valSet.validators[i+1:]...)
 			valSet.removeValidatorFromProposers(address)
-			return true
-		}
-	}
-	for i, v := range valSet.demotedValidators {
-		if v.Address() == address {
-			valSet.demotedValidators = append(valSet.demotedValidators[:i], valSet.demotedValidators[i+1:]...)
+			valSet.removeValidatorFromCandidates(address)
 			return true
 		}
 	}
@@ -564,8 +568,8 @@ func (valSet *weightedCouncil) Copy() istanbul.ValidatorSet {
 	newWeightedCouncil.validators = make([]istanbul.Validator, len(valSet.validators))
 	copy(newWeightedCouncil.validators, valSet.validators)
 
-	newWeightedCouncil.demotedValidators = make([]istanbul.Validator, len(valSet.demotedValidators))
-	copy(newWeightedCouncil.demotedValidators, valSet.demotedValidators)
+	newWeightedCouncil.candidates = make([]istanbul.Validator, len(valSet.candidates))
+	copy(newWeightedCouncil.candidates, valSet.candidates)
 
 	newWeightedCouncil.proposers = make([]istanbul.Validator, len(valSet.proposers))
 	copy(newWeightedCouncil.proposers, valSet.proposers)
@@ -621,16 +625,15 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 	}
 	valSet.stakingInfo = newStakingInfo
 
-	// get staking amounts of validators and demoted ones
-	candidates := append(valSet.validators, valSet.demotedValidators...)
-	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(candidates, newStakingInfo)
+	// get staking amounts of candidates
+	weightedValidators, stakingAmounts, err := getStakingAmountsOfValidators(valSet.candidates, newStakingInfo)
 	if err != nil {
 		return err
 	}
-	// divide the obtained validators into two groups which have enough amount of staking
-	weightedValidators, stakingAmounts, demotedValidators, _ := filterPoorValidators(weightedValidators, stakingAmounts)
+	// filter new validators from candidates who have more than minimum staking amount of KLAYs
+	weightedValidators, stakingAmounts = filterNewValidators(weightedValidators, stakingAmounts)
 	// update new validators and demoted validators of the council
-	valSet.setValidators(weightedValidators, demotedValidators)
+	valSet.setValidators(weightedValidators)
 
 	totalStaking := calcTotalAmount(weightedValidators, newStakingInfo, stakingAmounts)
 	calcWeight(weightedValidators, stakingAmounts, totalStaking)
@@ -643,49 +646,35 @@ func (valSet *weightedCouncil) Refresh(hash common.Hash, blockNum uint64) error 
 	return nil
 }
 
-// setValidators converts weighted validator slice to istanbul.Validators and sets them to the council.
-func (valSet *weightedCouncil) setValidators(validators []*weightedValidator, demoted []*weightedValidator) {
-	var (
-		newValidators istanbul.Validators
-		newDemoted    istanbul.Validators
-	)
+func (valSet *weightedCouncil) setValidators(validators []*weightedValidator) {
+	var newValidators istanbul.Validators
 
 	for _, val := range validators {
 		newValidators = append(newValidators, val)
 	}
 
-	for _, val := range demoted {
-		newDemoted = append(newDemoted, val)
-	}
-
 	valSet.validators = newValidators
-	valSet.demotedValidators = newDemoted
 }
 
-// filterPoorValidators divided the given weightedValidators into two group filtered by the minimum amount of staking.
-func filterPoorValidators(weightedValidators []*weightedValidator, stakingAmounts []float64) ([]*weightedValidator, []float64, []*weightedValidator, []float64) {
+// filterNewValidators select validators from candidates of the given weightedValidators filtered by the given staking amount.
+// If there is no validator having more than minimum staking amount, it returns the candidates as the validators.
+func filterNewValidators(weightedValidators []*weightedValidator, stakingAmounts []float64) ([]*weightedValidator, []float64) {
 	var (
 		newWeightedValidators []*weightedValidator
-		newWeightedDemoted    []*weightedValidator
 		newValidatorsStaking  []float64
-		newDemotedStaking     []float64
 	)
 	amount := params.MinimumStakingAmount().Uint64()
 	for idx, val := range stakingAmounts {
 		if uint64(val) >= amount {
 			newWeightedValidators = append(newWeightedValidators, weightedValidators[idx])
 			newValidatorsStaking = append(newValidatorsStaking, val)
-		} else {
-			newWeightedDemoted = append(newWeightedDemoted, weightedValidators[idx])
-			newDemotedStaking = append(newDemotedStaking, val)
 		}
 	}
-
 	if len(newWeightedValidators) <= 0 {
-		return newWeightedDemoted, newDemotedStaking, []*weightedValidator{}, []float64{}
-	} else {
-		return newWeightedValidators, newValidatorsStaking, newWeightedDemoted, newDemotedStaking
+		return weightedValidators, stakingAmounts
 	}
+
+	return newWeightedValidators, newValidatorsStaking
 }
 
 // getStakingAmountsOfValidators calculates stakingAmounts of validators.
