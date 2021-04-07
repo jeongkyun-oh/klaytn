@@ -27,8 +27,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/klaytn/klaytn/reward"
-
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/klaytn/klaytn/blockchain/state"
 	"github.com/klaytn/klaytn/blockchain/types"
@@ -39,8 +37,10 @@ import (
 	istanbulCore "github.com/klaytn/klaytn/consensus/istanbul/core"
 	"github.com/klaytn/klaytn/consensus/istanbul/validator"
 	"github.com/klaytn/klaytn/crypto/sha3"
+	"github.com/klaytn/klaytn/governance"
 	"github.com/klaytn/klaytn/networks/rpc"
 	"github.com/klaytn/klaytn/params"
+	"github.com/klaytn/klaytn/reward"
 	"github.com/klaytn/klaytn/rlp"
 )
 
@@ -644,7 +644,13 @@ func (sb *backend) snapshot(chain consensus.ChainReader, number uint64, hash com
 		// Let's refresh proposers in Snapshot_N using previous proposersUpdateInterval block for N+1, if not updated yet.
 		pHeader := chain.GetHeaderByNumber(params.CalcProposerBlockNumber(snap.Number + 1))
 		if pHeader != nil {
-			if err := snap.ValSet.Refresh(pHeader.Hash(), pHeader.Number.Uint64(), sb.chain.Config()); err != nil {
+			governanceMode := governance.GovernanceModeMap[sb.governance.GovernanceMode()]
+			governingNode := common.Address{}
+			if governanceMode == params.GovernanceMode_Single {
+				governingNode = sb.governance.GoverningNode()
+			}
+
+			if err := snap.ValSet.Refresh(pHeader.Hash(), pHeader.Number.Uint64(), sb.chain.Config(), governingNode); err != nil {
 				// There are three error cases and they just don't refresh proposers
 				// (1) no validator at all
 				// (2) invalid formatted hash
