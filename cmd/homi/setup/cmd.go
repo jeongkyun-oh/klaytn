@@ -366,9 +366,9 @@ func genServiceChainTestGenesis(nodeAddrs, testAddrs []common.Address) *blockcha
 
 func genCypressTestGenesis(nodeAddrs, testAddrs []common.Address) *blockchain.Genesis {
 	testGenesis := genCypressCommonGenesis(nodeAddrs, testAddrs)
-	testGenesis.Config.Istanbul.Epoch = 30
-	testGenesis.Config.Governance.Reward.StakingUpdateInterval = 60
-	testGenesis.Config.Governance.Reward.ProposerUpdateInterval = 30
+	testGenesis.Config.Istanbul.Epoch = 128
+	testGenesis.Config.Governance.Reward.StakingUpdateInterval = 256
+	testGenesis.Config.Governance.Reward.ProposerUpdateInterval = 128
 	testGenesis.Config.Governance.Reward.MinimumStake = new(big.Int).SetUint64(5000000)
 	allocationFunction := genesis.AllocWithPrecypressContract(append(nodeAddrs, testAddrs...), new(big.Int).Exp(big.NewInt(10), big.NewInt(50), nil))
 	allocationFunction(testGenesis)
@@ -420,9 +420,9 @@ func genBaobabGenesis(nodeAddrs, testAddrs []common.Address) *blockchain.Genesis
 
 func genBaobabTestGenesis(nodeAddrs, testAddrs []common.Address) *blockchain.Genesis {
 	testGenesis := genBaobabCommonGenesis(nodeAddrs, testAddrs)
-	testGenesis.Config.Istanbul.Epoch = 30
-	testGenesis.Config.Governance.Reward.StakingUpdateInterval = 60
-	testGenesis.Config.Governance.Reward.ProposerUpdateInterval = 30
+	testGenesis.Config.Istanbul.Epoch = 128
+	testGenesis.Config.Governance.Reward.StakingUpdateInterval = 256
+	testGenesis.Config.Governance.Reward.ProposerUpdateInterval = 1228
 	testGenesis.Config.Governance.Reward.MinimumStake = new(big.Int).SetUint64(5000000)
 	allocationFunction := genesis.AllocWithPrebaobabContract(append(nodeAddrs, testAddrs...), new(big.Int).Exp(big.NewInt(10), big.NewInt(50), nil))
 	allocationFunction(testGenesis)
