@@ -21,6 +21,7 @@
 package database
 
 import (
+	"bytes"
 	"encoding/binary"
 
 	"github.com/klaytn/klaytn/common"
@@ -43,6 +44,24 @@ var (
 
 	// fastTrieProgressKey tracks the number of trie entries imported during fast sync.
 	fastTrieProgressKey = []byte("TrieSync")
+
+	// snapshotDisabledKey flags that the snapshot should not be maintained due to initial sync.
+	snapshotDisabledKey = []byte("SnapshotDisabled")
+
+	// snapshotRootKey tracks the hash of the last snapshot.
+	snapshotRootKey = []byte("SnapshotRoot")
+
+	// snapshotJournalKey tracks the in-memory diff layers across restarts.
+	snapshotJournalKey = []byte("SnapshotJournal")
+
+	// snapshotGeneratorKey tracks the snapshot generation marker across restarts.
+	snapshotGeneratorKey = []byte("SnapshotGenerator")
+
+	// snapshotRecoveryKey tracks the snapshot recovery marker across restarts.
+	snapshotRecoveryKey = []byte("SnapshotRecovery")
+
+	// snapshotSyncStatusKey tracks the snapshot sync status across restarts.
+	snapshotSyncStatusKey = []byte("SnapshotSyncStatus")
 
 	validSectionKey = []byte("count")
 
@@ -81,7 +100,10 @@ var (
 	valueTransferTxHashPrefix = []byte("vt-tx-hash-key-") // Prefix + hash -> hash
 
 	// bloomBitsPrefix + bit (uint16 big endian) + section (uint64 big endian) + hash -> bloom bits
-	bloomBitsPrefix = []byte("B")
+	bloomBitsPrefix       = []byte("B")
+	SnapshotAccountPrefix = []byte("a") // SnapshotAccountPrefix + account hash -> account trie value
+	SnapshotStoragePrefix = []byte("o") // SnapshotStoragePrefix + account hash + storage hash -> storage trie value
+	CodePrefix            = []byte("c") // CodePrefix + code hash -> account code
 
 	senderTxHashToTxHashPrefix = []byte("SenderTxHash")
 
@@ -138,6 +160,35 @@ func blockReceiptsKey(number uint64, hash common.Hash) []byte {
 // TxLookupKey = txLookupPrefix + hash
 func TxLookupKey(hash common.Hash) []byte {
 	return append(txLookupPrefix, hash.Bytes()...)
+}
+
+// accountSnapshotKey = SnapshotAccountPrefix + hash
+func accountSnapshotKey(hash common.Hash) []byte {
+	return append(SnapshotAccountPrefix, hash.Bytes()...)
+}
+
+// storageSnapshotKey = SnapshotStoragePrefix + account hash + storage hash
+func storageSnapshotKey(accountHash, storageHash common.Hash) []byte {
+	return append(append(SnapshotStoragePrefix, accountHash.Bytes()...), storageHash.Bytes()...)
+}
+
+// storageSnapshotsKey = SnapshotStoragePrefix + account hash + storage hash
+func storageSnapshotsKey(accountHash common.Hash) []byte {
+	return append(SnapshotStoragePrefix, accountHash.Bytes()...)
+}
+
+// codeKey = CodePrefix + hash
+func codeKey(hash common.Hash) []byte {
+	return append(CodePrefix, hash.Bytes()...)
+}
+
+// IsCodeKey reports whether the given byte slice is the key of contract code,
+// if so return the raw code hash as well.
+func IsCodeKey(key []byte) (bool, []byte) {
+	if bytes.HasPrefix(key, CodePrefix) && len(key) == common.HashLength+len(CodePrefix) {
+		return true, key[len(CodePrefix):]
+	}
+	return false, nil
 }
 
 func SenderTxHashToTxHashKey(senderTxHash common.Hash) []byte {

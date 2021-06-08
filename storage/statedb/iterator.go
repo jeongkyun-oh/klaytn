@@ -27,6 +27,7 @@ import (
 
 	"github.com/klaytn/klaytn/common"
 	"github.com/klaytn/klaytn/rlp"
+	"github.com/klaytn/klaytn/storage/database"
 )
 
 // Iterator is a key-value trie iterator that traverses a Trie.
@@ -98,6 +99,19 @@ type NodeIterator interface {
 	// iterator is not positioned at a leaf. Callers must not retain references
 	// to the value after calling Next.
 	LeafProof() [][]byte
+
+	// AddResolver sets an intermediate database to use for looking up trie nodes
+	// before reaching into the real persistent layer.
+	//
+	// This is not required for normal operation, rather is an optimization for
+	// cases where trie nodes can be recovered from some external mechanism without
+	// reading from disk. In those cases, this resolver allows short circuiting
+	// accesses and returning them from memory.
+	//
+	// Before adding a similar mechanism to any other place in Geth, consider
+	// making trie.Database an interface and wrapping at that level. It's a huge
+	// refactor, but it could be worth it if another occurrence arises.
+	//AddResolver(database database.Database)
 }
 
 // nodeIteratorState represents the iteration state at one particular node of the
@@ -115,6 +129,8 @@ type nodeIterator struct {
 	stack []*nodeIteratorState // Hierarchy of trie nodes persisting the iteration state
 	path  []byte               // Path to the current node
 	err   error                // Failure set in case of an internal error in the iterator
+
+	resolver database.Database // Optional intermediate resolver above the disk layer
 }
 
 // iteratorEnd is stored in nodeIterator.err when iteration is done.
@@ -196,6 +212,10 @@ func (it *nodeIterator) LeafProof() [][]byte {
 		}
 	}
 	panic("not at leaf")
+}
+
+func (it *nodeIterator) AddResolver(resolver database.Database) {
+	it.resolver = resolver
 }
 
 func (it *nodeIterator) Path() []byte {
@@ -412,6 +432,10 @@ func (it *differenceIterator) LeafKey() []byte {
 
 func (it *differenceIterator) LeafProof() [][]byte {
 	return it.b.LeafProof()
+}
+
+func (it *differenceIterator) AddResolver(resolver database.Database) {
+	panic("not implemented")
 }
 
 func (it *differenceIterator) Path() []byte {

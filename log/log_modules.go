@@ -112,13 +112,14 @@ const (
 	NodeCNTracers
 	Reward
 	ServiceChain
+	Snapshot
 	StorageDatabase
 	StorageStateDB
 	VM
 	Work
-	CMDKSPN
 
 	// 51~60
+	CMDKSPN
 	CMDKSEN
 	ChainDataFetcher
 	KAS
