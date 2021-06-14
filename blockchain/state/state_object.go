@@ -75,9 +75,10 @@ func (self Storage) Copy() Storage {
 // Account values can be accessed and modified through the object.
 // Finally, call CommitStorageTrie to write the modified storage trie into a database.
 type stateObject struct {
-	address common.Address
-	account account.Account
-	db      *StateDB
+	address  common.Address
+	addrHash common.Hash
+	account  account.Account
+	db       *StateDB
 
 	// DB error.
 	// State objects are used by the consensus core and VM which are
@@ -120,6 +121,7 @@ func newObject(db *StateDB, address common.Address, data account.Account) *state
 	return &stateObject{
 		db:            db,
 		address:       address,
+		addrHash:      crypto.Keccak256Hash(address[:]),
 		account:       data,
 		cachedStorage: make(Storage),
 		dirtyStorage:  make(Storage),
@@ -184,15 +186,52 @@ func (self *stateObject) GetState(db Database, key common.Hash) common.Hash {
 	if exists {
 		return value
 	}
+	// If no live objects are available, attempt to use snapshots
+	var (
+		enc   []byte
+		err   error
+		meter *time.Duration
+	)
+	readStart := time.Now()
 	// Load from DB in case it is missing.
 	// Track the amount of time wasted on reading the storge trie
 	if EnabledExpensive {
-		defer func(start time.Time) { self.db.StorageReads += time.Since(start) }(time.Now())
+		defer func() {
+			if meter != nil {
+				*meter += time.Since(readStart)
+			}
+		}()
 	}
-	enc, err := self.getStorageTrie(db).TryGet(key[:])
-	if err != nil {
-		self.setError(err)
-		return common.Hash{}
+	if self.db.snap != nil {
+		if EnabledExpensive {
+			meter = &self.db.SnapshotStorageReads
+		}
+		// If the object was destructed in *this* block (and potentially resurrected),
+		// the storage has been cleared out, and we should *not* consult the previous
+		// snapshot about any storage values. The only possible alternatives are:
+		//   1) resurrect happened, and new slot values were set -- those should
+		//      have been handles via pendingStorage above.
+		//   2) we don't have new values, and can deliver empty response back
+		if _, destructed := self.db.snapDestructs[self.addrHash]; destructed {
+			return common.Hash{}
+		}
+		enc, err = self.db.snap.Storage(self.addrHash, crypto.Keccak256Hash(key.Bytes()))
+	}
+	// If snapshot unavailable or reading from it failed, load from the database
+	if self.db.snap == nil || err != nil {
+		if meter != nil {
+			// If we already spent time checking the snapshot, account for it
+			// and reset the readStart
+			*meter += time.Since(readStart)
+			readStart = time.Now()
+		}
+		if EnabledExpensive {
+			meter = &self.db.StorageReads
+		}
+		if enc, err = self.getStorageTrie(db).TryGet(key.Bytes()); err != nil {
+			self.setError(err)
+			return common.Hash{}
+		}
 	}
 	if len(enc) > 0 {
 		_, content, _, err := rlp.Split(enc)
@@ -260,7 +299,12 @@ func (self *stateObject) updateStorageTrie(db Database) Trie {
 	if EnabledExpensive {
 		defer func(start time.Time) { self.db.StorageUpdates += time.Since(start) }(time.Now())
 	}
+	// The snapshot storage map for the object
+	var storage map[common.Hash][]byte
+
 	tr := self.getStorageTrie(db)
+	hasher := self.db.hasher
+
 	for key, value := range self.dirtyStorage {
 		delete(self.dirtyStorage, key)
 		if (value == common.Hash{}) {
@@ -270,6 +314,17 @@ func (self *stateObject) updateStorageTrie(db Database) Trie {
 		// Encoding []byte cannot fail, ok to ignore the error.
 		v, _ := rlp.EncodeToBytes(bytes.TrimLeft(value[:], "\x00"))
 		self.setError(tr.TryUpdate(key[:], v))
+		// If state snapshotting is active, cache the data til commit
+		if self.db.snap != nil {
+			if storage == nil {
+				// Retrieve the old storage map, if available, create a new one otherwise
+				if storage = self.db.snapStorage[self.addrHash]; storage == nil {
+					storage = make(map[common.Hash][]byte)
+					self.db.snapStorage[self.addrHash] = storage
+				}
+			}
+			storage[crypto.HashData(hasher, key[:])] = v // v will be nil if value is 0x00
+		}
 	}
 	return tr
 }
@@ -443,6 +498,13 @@ func (self *stateObject) SetNonce(nonce uint64) {
 
 func (self *stateObject) setNonce(nonce uint64) {
 	self.account.SetNonce(nonce)
+}
+
+func (self *stateObject) StorageTrieRoot() common.Hash {
+	if acc := account.GetProgramAccount(self.account); acc != nil {
+		return acc.GetStorageRoot()
+	}
+	return emptyRoot
 }
 
 func (self *stateObject) CodeHash() []byte {

@@ -27,6 +27,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/klaytn/klaytn/snapshot"
+
 	"github.com/klaytn/klaytn/blockchain/types"
 	"github.com/klaytn/klaytn/blockchain/types/account"
 	"github.com/klaytn/klaytn/blockchain/types/accountkey"
@@ -59,8 +61,15 @@ var (
 // StateDBs within the Klaytn protocol are used to cache stateObjects from Merkle Patricia Trie
 // and mediate the operations to them.
 type StateDB struct {
-	db   Database
-	trie Trie
+	db     Database
+	trie   Trie
+	hasher crypto.KeccakState
+
+	snaps         *snapshot.Tree
+	snap          snapshot.Snapshot
+	snapDestructs map[common.Hash]struct{}
+	snapAccounts  map[common.Hash][]byte
+	snapStorage   map[common.Hash]map[common.Hash][]byte
 
 	// This map holds 'live' objects, which will get modified while processing a state transition.
 	stateObjects             map[common.Address]*stateObject
@@ -93,32 +102,45 @@ type StateDB struct {
 	prefetching bool
 
 	// Measurements gathered during execution for debugging purposes
-	AccountReads   time.Duration
-	AccountHashes  time.Duration
-	AccountUpdates time.Duration
-	AccountCommits time.Duration
-	StorageReads   time.Duration
-	StorageHashes  time.Duration
-	StorageUpdates time.Duration
-	StorageCommits time.Duration
+	AccountReads         time.Duration
+	AccountHashes        time.Duration
+	AccountUpdates       time.Duration
+	AccountCommits       time.Duration
+	StorageReads         time.Duration
+	StorageHashes        time.Duration
+	StorageUpdates       time.Duration
+	StorageCommits       time.Duration
+	SnapshotAccountReads time.Duration
+	SnapshotStorageReads time.Duration
+	SnapshotCommits      time.Duration
 }
 
 // Create a new state from a given trie.
-func New(root common.Hash, db Database) (*StateDB, error) {
+func New(root common.Hash, db Database, snaps *snapshot.Tree) (*StateDB, error) { // TODO-Snapshot change parameter with snaps
 	tr, err := db.OpenTrie(root)
 	if err != nil {
 		return nil, err
 	}
-	return &StateDB{
+	sdb := &StateDB{
 		db:                       db,
 		trie:                     tr,
+		snaps:                    snaps,
 		stateObjects:             make(map[common.Address]*stateObject),
 		stateObjectsDirtyStorage: make(map[common.Address]struct{}),
 		stateObjectsDirty:        make(map[common.Address]struct{}),
 		logs:                     make(map[common.Hash][]*types.Log),
 		preimages:                make(map[common.Hash][]byte),
 		journal:                  newJournal(),
-	}, nil
+		hasher:                   crypto.NewKeccakState(),
+	}
+	if sdb.snaps != nil {
+		if sdb.snap = sdb.snaps.Snapshot(root); sdb.snap != nil {
+			sdb.snapDestructs = make(map[common.Hash]struct{})
+			sdb.snapAccounts = make(map[common.Hash][]byte)
+			sdb.snapStorage = make(map[common.Hash]map[common.Hash][]byte)
+		}
+	}
+	return sdb, nil
 }
 
 // Create a new state from a given trie with prefetching
@@ -178,6 +200,14 @@ func (self *StateDB) Reset(root common.Hash) error {
 	self.logSize = 0
 	self.preimages = make(map[common.Hash][]byte)
 	self.clearJournalAndRefund()
+
+	if self.snaps != nil {
+		if self.snap = self.snaps.Snapshot(root); self.snap != nil {
+			self.snapDestructs = make(map[common.Hash]struct{})
+			self.snapAccounts = make(map[common.Hash][]byte)
+			self.snapStorage = make(map[common.Hash]map[common.Hash][]byte)
+		}
+	}
 	return nil
 }
 
@@ -507,6 +537,14 @@ func (self *StateDB) updateStateObject(stateObject *stateObject) {
 		}
 		self.setError(self.trie.TryUpdate(addr[:], data))
 	}
+
+	// If state snapshotting is active, cache the data til commit. Note, this
+	// update mechanism is not symmetric to the deletion, because whereas it is
+	// enough to track account updates at commit time, deletions need tracking
+	// at transaction boundary level to ensure we capture state clearing.
+	if self.snap != nil {
+		self.snapAccounts[stateObject.addrHash] = snapshot.SlimAccountRLP(stateObject.Nonce(), stateObject.Balance(), stateObject.StorageTrieRoot(), stateObject.CodeHash())
+	}
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -522,34 +560,74 @@ func (self *StateDB) deleteStateObject(stateObject *stateObject) {
 
 // Retrieve a state object given by the address. Returns nil if not found.
 func (self *StateDB) getStateObject(addr common.Address) *stateObject {
-	// First, check stateObjects if there is "live" object.
-	if obj := self.stateObjects[addr]; obj != nil {
-		if obj.deleted {
-			return nil
-		}
+	if obj := self.getDeletedStateObject(addr); obj != nil && !obj.deleted {
 		return obj
 	}
-	// Track the amount of time wasted on loading the object from the database
-	if EnabledExpensive {
-		defer func(start time.Time) { self.AccountReads += time.Since(start) }(time.Now())
-	}
-	// Second, the object for given address is not cached.
-	// Load the object from the database.
-	enc, err := self.trie.TryGet(addr[:])
-	if len(enc) == 0 {
-		self.setError(err)
-		return nil
-	}
-	serializer := account.NewAccountSerializer()
-	if err := rlp.DecodeBytes(enc, serializer); err != nil {
-		logger.Error("Failed to decode state object", "addr", addr, "err", err)
-		return nil
-	}
-	data := serializer.GetAccount()
-	// Insert into the live set.
-	obj := newObject(self, addr, data)
-	self.setStateObject(obj)
+	return nil
+}
 
+// getDeletedStateObject is similar to getStateObject, but instead of returning
+// nil for a deleted state object, it returns the actual object with the deleted
+// flag set. This is needed by the state journal to revert to the correct s-
+// destructed object instead of wiping all knowledge about the state object.
+func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
+	// Prefer live objects if any is available
+	if obj := s.stateObjects[addr]; obj != nil {
+		return obj
+	}
+	// If no live objects are available, attempt to use snapshots
+	var (
+		data account.Account
+		err  error
+	)
+	if s.snap != nil {
+		if EnabledExpensive {
+			defer func(start time.Time) { s.SnapshotAccountReads += time.Since(start) }(time.Now())
+		}
+		var acc *snapshot.Account
+		if acc, err = s.snap.Account(crypto.HashData(s.hasher, addr.Bytes())); err == nil {
+			if acc == nil {
+				return nil
+			}
+			// TODO-Klaytn-Snapshot Refactor this with the Klaytn account types
+			//data = &Account{
+			//	Nonce:    acc.Nonce,
+			//	Balance:  acc.Balance,
+			//	CodeHash: acc.CodeHash,
+			//	Root:     common.BytesToHash(acc.Root),
+			//}
+			//if len(data.CodeHash) == 0 {
+			//	data.CodeHash = emptyCodeHash
+			//}
+			//if data.Root == (common.Hash{}) {
+			//	data.Root = emptyRoot
+			//}
+		}
+	}
+	// If snapshot unavailable or reading from it failed, load from the database
+	if s.snap == nil || err != nil {
+		if EnabledExpensive {
+			defer func(start time.Time) { s.AccountReads += time.Since(start) }(time.Now())
+		}
+		enc, err := s.trie.TryGet(addr.Bytes())
+		if err != nil {
+			s.setError(fmt.Errorf("getDeleteStateObject (%x) error: %v", addr.Bytes(), err))
+			return nil
+		}
+		if len(enc) == 0 {
+			return nil
+		}
+
+		serializer := account.NewAccountSerializer()
+		if err := rlp.DecodeBytes(enc, serializer); err != nil {
+			logger.Error("Failed to decode state object", "addr", addr, "err", err)
+			return nil
+		}
+		data = serializer.GetAccount()
+	}
+	// Insert into the live set
+	obj := newObject(s, addr, data)
+	s.setStateObject(obj)
 	return obj
 }
 
@@ -582,17 +660,26 @@ func (self *StateDB) GetOrNewSmartContract(addr common.Address) *stateObject {
 // createObject creates a new state object. If there is an existing account with
 // the given address, it is overwritten and returned as the second return value.
 func (self *StateDB) createObject(addr common.Address) (newobj, prev *stateObject) {
-	prev = self.getStateObject(addr)
+	prev = self.getDeletedStateObject(addr)
+
 	acc, err := account.NewAccountWithType(account.ExternallyOwnedAccountType)
 	if err != nil {
 		logger.Error("An error occurred on call NewAccountWithType", "err", err)
+	}
+
+	var prevdestruct bool
+	if self.snap != nil && prev != nil {
+		_, prevdestruct = self.snapDestructs[prev.addrHash]
+		if !prevdestruct {
+			self.snapDestructs[prev.addrHash] = struct{}{}
+		}
 	}
 	newobj = newObject(self, addr, acc)
 	newobj.setNonce(0) // sets the object to dirty
 	if prev == nil {
 		self.journal.append(createObjectChange{account: &addr})
 	} else {
-		self.journal.append(resetObjectChange{prev: prev})
+		self.journal.append(resetObjectChange{prev: prev, prevdestruct: prevdestruct})
 	}
 	self.setStateObject(newobj)
 	return newobj, prev
@@ -699,6 +786,7 @@ func (self *StateDB) Copy() *StateDB {
 		logSize:           self.logSize,
 		preimages:         make(map[common.Hash][]byte),
 		journal:           newJournal(),
+		hasher:            crypto.NewKeccakState(),
 	}
 	// Copy the dirty states, logs, and preimages
 	for addr := range self.journal.dirties {
@@ -788,6 +876,16 @@ func (stateDB *StateDB) Finalise(deleteEmptyObjects bool, setStorageRoot bool) {
 
 		if so.suicided || (deleteEmptyObjects && so.empty()) {
 			stateDB.deleteStateObject(so)
+
+			// If state snapshotting is active, also mark the destruction there.
+			// Note, we can't do this only at the end of a block because multiple
+			// transactions within the same block might self destruct and then
+			// ressurrect an account; but the snapshotter needs both events.
+			if stateDB.snap != nil {
+				stateDB.snapDestructs[so.addrHash] = struct{}{} // We need to maintain account deletions explicitly (will remain set indefinitely)
+				delete(stateDB.snapAccounts, so.addrHash)       // Clear out any previously updated account data (may be recreated via a ressurrect)
+				delete(stateDB.snapStorage, so.addrHash)        // Clear out any previously updated storage data (may be recreated via a ressurrect)
+			}
 		} else {
 			so.updateStorageTrie(stateDB.db)
 			so.setStorageRoot(setStorageRoot, stateDB.stateObjectsDirtyStorage)
@@ -831,9 +929,12 @@ func (self *StateDB) Prepare(thash, bhash common.Hash, ti int) {
 }
 
 func (s *StateDB) clearJournalAndRefund() {
-	s.journal = newJournal()
-	s.validRevisions = s.validRevisions[:0]
-	s.refund = 0
+	if len(s.journal.entries) > 0 {
+		s.journal = newJournal()
+		s.validRevisions = s.validRevisions[:0]
+		s.refund = 0
+	}
+	s.validRevisions = s.validRevisions[:0] // Snapshots can be created without journal entires
 }
 
 // Commit writes the state to the underlying in-memory trie database.
